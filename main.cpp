@@ -99,6 +99,7 @@ int main() {
 	char port[6] = "COM7";
 	char* port_p = port;
 
+	/*
 	if (!serialPort.OpenPort(port_p)) //COM25번의 포트를 오픈한다. 실패할 경우 -1을 반환한다.
 	{
 		cout << "connect faliled" << endl;
@@ -108,7 +109,7 @@ int main() {
 		serialPort.ConfigurePort(9600, 8, 0, 0, 0);
 		cout << "connect successed" << endl;
 	}
-
+	*/
 
 	VideoCapture cap1(0);
 	Size size(640, 360);
@@ -146,7 +147,7 @@ int main() {
 		cout << "detected 2 aruco markers and 3 points" << endl;
 
 
-
+		/*
 		//원점: paper marker, real 12*12 배열 생성(mm 단위)
 		int dis_between_lines = 90 / 11;//mm단위
 		for (int i = 0; i < 12; i++) {
@@ -223,6 +224,7 @@ int main() {
 			//////////@@@@@@@@@@@@@@@@@@@@@Serial@@@@@@@@@@@@@@@@@@@@@@@////////////////////
 			//myPoint p;
 			//@@@@ index : index of ai stone in points_arr
+			
 			cout << "send the point start" << endl;
 			for (int i = 0; i < 4; i++) {
 				p.robot_x = point_arr[index / 12][index % 12].robot_x;
@@ -255,7 +257,6 @@ int main() {
 
 			vector<int> joint;
 			joint = joint_arc(p);
-
 			vector <char> packet;
 			packet = make_paket(joint);
 			for (int i = 0; i < packet.size(); i++) {
@@ -375,14 +376,16 @@ int main() {
 
 				}
 			}
+			
 			//////////@@@@@@@@@@@@@@@@@@@@@Serial End@@@@@@@@@@@@@@@@@@@@@@@////////////////////
 			draw_board(point_arr);
 			waitKey(1000);
 		}
 		if (waitKey(10) == 27) break;
+		*/
 	}
 	waitKey(0);
-	serialPort.ClosePort(); //작업이 끝나면 포트를 닫는다
+	//serialPort.ClosePort(); //작업이 끝나면 포트를 닫는다
 
 	cout << "end connect" << endl;
 
@@ -700,7 +703,6 @@ void is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, 
 		Mat paperFrame;
 
 		warpPerspective(input_image, paperFrame, transMat_paper, Size(300, 300));
-
 		imshow("perspective", paperFrame);
 
 
