@@ -29,7 +29,7 @@ public:
 	}
 };
 
-void arr_of_points(Mat frame, myLine_arr& lines_comb, myPoint points[][12]);
+void arr_of_points(myLine_arr& lines_comb, myPoint points[][12]);
 void new_arr_of_points(Mat frame, myPoint points[][12], Mat pap_pix2pap_real, Point2f p_origin_pixel);
 
 void drawDots(Mat frame, myPoint points[][12]);

@@ -4,7 +4,7 @@
 using namespace std;
 using namespace cv;
 
-void arr_of_points(Mat frame, myLine_arr& lines_comb, myPoint points[][12]) {
+void arr_of_points(myLine_arr& lines_comb, myPoint points[][12]) {
 	float a1, a2, b1, b2;
 	//solve the point of intersection of two lines
 	for (size_t i = 0; i < lines_comb.x_lines.size(); i++)
@@ -120,7 +120,6 @@ int dotDetection(Mat frame, myPoint points[][12]) {
 			if (set_dot_state(img_higher_contrast, points[x][y])) {
 				return 1;
 			}
-			//else cout << i << " the point ("<<x << ", " << y << ") is not empty" << endl;
 		}
 		//else cout << i << " not a point" << endl;
 	}

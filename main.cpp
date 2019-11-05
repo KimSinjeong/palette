@@ -25,8 +25,9 @@ int screen_hieght;
 Mat dictionary = Mat(250, (6 * 6 + 7) / 8, CV_8UC4, (uchar*)DICT_6X6_1000_BYTES);
 
 typedef struct coordinate {
-	Point2d px, py, gx, gy, v;
-	Mat badukpan;
+	Point2d px, py, gx, gy; // Orthogonal vectors of each coordinates.
+	Point2d v; // Position vector from global origin to local origin.
+	Mat badukpan; // Go board.
 };
 
 Mat getByteListFromBits(const Mat& bits) {
@@ -143,17 +144,34 @@ int main() {
 		//is_marker(frame, pap_pix2pap_real, p_origin_pixel, g_origin_pixel, p_x_pixel, p_y_pixel, g_x_pixel, g_y_pixel, t_g_p);
 		//cout << "detected 2 aruco markers and 3 points" << endl;
 		
+		if (coord.badukpan.size().height == 1) {
+			waitKey(10);
+			continue;
+		}
 		// 1. Go board grid detection
+		myLine_arr linearr = myLine_arr();
+		Mat image = coord.badukpan.clone();
+		if (linearr.hough_detection(coord.badukpan)) {
+			myPoint parr[12][12];
+			arr_of_points(linearr, parr);
 
-
-
+			for (int i = 0; i < 12; i++)
+				for (int j = 0; j < 12; j++)
+					circle(image, Point(parr[i][j].x, parr[i][j].y), 5, Scalar(0, 0, 255));
+		}
+		else {
+			cout << linearr.x_lines.size() << " " << linearr.y_lines.size() << endl;
+			linearr.drawLines(image);
+		}
+		imshow("grid", image);
 		// 2. Go stone detection
+
 
 
 		// 3. Derive global location of a go stone.
 		
 
-		waitKey(5);
+		waitKey(10);
 		//원점: paper marker, real 12*12 배열 생성(mm 단위)
 		/*
 		int dis_between_lines = 90 / 11;//mm단위
@@ -397,10 +415,7 @@ int main() {
 	return 0;
 }
 
-
-
 //--------------------------------------------------------------------------------------------------------------------------//
-
 
 coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p) {
 //void is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p) {
@@ -430,9 +445,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				isContourConvex(Mat(approx)) //convex인지 검사한다.
 				)
 			{
-
-				//drawContours(input_image, contours, i, Scalar(0, 255, 0), 1, LINE_AA);
-
 				vector<cv::Point2f> points;
 				for (int j = 0; j < 4; j++)
 					points.push_back(cv::Point2f(approx[j].x, approx[j].y));
@@ -537,7 +549,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 						bitMatrix.at<uchar>(y, x) = 1;
 				}
 			}
-
 			bitMatrixs.push_back(bitMatrix);
 		}
 
@@ -575,9 +586,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				final_detectedMarkers.push_back(m);
 			}
 		}
-
-
-		//imshow("aruco", input_image);
 
 		SimpleBlobDetector::Params params;
 		params.minThreshold = 100;
@@ -694,7 +702,7 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 		Mat transMat_paper = getPerspectiveTransform(src, dst);
 		Mat paperFrame;
 
-		warpPerspective(input_image, paperFrame, transMat_paper, Size(SCALAR * 122, SCALAR * 122));
+		warpPerspective(input_gray_image, paperFrame, transMat_paper, Size(SCALAR * 122, SCALAR * 122));
 
 		Mat res;
 		if (detectedMarkers.size() == 2) {
@@ -712,7 +720,8 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 		}
 
 		//rectangle(paperFrame, Point(0, 0), Point(30, 30), Scalar(255, 255, 255));
-
+		Point2d pos = Point2d(20, 30);
+		paperFrame = paperFrame(Rect((int)pos.x, (int)pos.y, 210, 210));
 		imshow("perspective", paperFrame);
 
 		// Coordinate transformation between global and local coordinates.
@@ -722,7 +731,7 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 			coord.py = Point2d(res.at<double>(2, 0), res.at<double>(2, 1));
 			coord.gx = Point2d(res.at<double>(4, 0), res.at<double>(4, 1));
 			coord.gy = Point2d(res.at<double>(5, 0), res.at<double>(5, 1));
-			coord.v = Point2d(res.at<double>(0, 0), res.at<double>(0, 1)) - Point2d(res.at<double>(2, 0), res.at<double>(2, 1));
+			coord.v = Point2d(res.at<double>(0, 0), res.at<double>(0, 1)) - Point2d(res.at<double>(2, 0), res.at<double>(2, 1)) + pos;
 			coord.badukpan = paperFrame.clone();
 			return coord;
 		}
@@ -730,7 +739,7 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 			cout << "no enogh markers ^^" << endl;
 			return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1)};
 		}
-		else if (keypoints.size() != 3) {
+		else{
 			cout << "no enogh points ^^" << endl;
 			return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
 		}

@@ -65,22 +65,27 @@ void myLine_arr::XYcontour(const double rho_threshold, const double theta_thresh
 
 int myLine_arr::hough_detection(cv::Mat frame) {
 	Mat c_frame = frame.clone();
-	Mat img_gray, img_dilate, dst;
-	cvtColor(c_frame, img_gray, COLOR_RGB2GRAY);
-	Canny(img_gray, dst, 50, 50, 3);
+	//Mat img_gray, img_dilate, dst;
+	//cvtColor(c_frame, img_gray, COLOR_RGB2GRAY);
+	//Canny(img_gray, dst, 50, 50, 3);
+	Mat img_dilate, dst;
+	Canny(frame, dst, 40, 120, 3);
+	//....
+	//imshow("canny", dst);
+	//....
 	Mat mask = cv::getStructuringElement(cv::MORPH_RECT, Size(3, 3), Point(1, 1));
 	dilate(dst, img_dilate, mask, Point(-1, -1), 2);
 	erode(img_dilate, dst, mask, Point(-1, -1), 2);
 
 	// Standard Hough Line Transform
 	vector<Vec2f> lines; // will hold the results of the detection
-	HoughLines(dst, lines, 1, CV_PI / 180, 200); // runs the actual detection
+	HoughLines(dst, lines, 1, CV_PI / 180, 160); // runs the actual detection
 
 	while (lines.size() != 0) {
 		this->insert(lines.back()[0], lines.back()[1]);
 		lines.pop_back();
 	}
-	//line_arr.drawLines(frame);
+	//this->drawLines(frame);
 	double rho_threshold = 5;
 	double theta_threshold = 20 * CV_PI / 180;
 	this->XYcontour(rho_threshold, theta_threshold);
