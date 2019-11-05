@@ -91,6 +91,7 @@ bool identify(const Mat& onlyBits, int& idx, int& rotation) {
 	return idx != -1;
 }
 
+//void is_marker(Mat frame, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p);
 coordinate is_marker(Mat frame, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p);
 
 Mat find_global_real_coor(Mat input_point, Point2f pap_pix2pap_real, Point2f p_origin_pixel, Point2f g_origin_pixel, Point2f p_x_pixel, Point2f p_y_pixel, Point2f g_x_pixel, Point2f g_y_pixel, Mat t_g_p);
@@ -139,14 +140,22 @@ int main() {
 		cap1 >> frame;
 		//2개의 아루코 마커와 3개의 점이 인식될때까지
 		coordinate coord = is_marker(frame, pap_pix2pap_real, p_origin_pixel, g_origin_pixel, p_x_pixel, p_y_pixel, g_x_pixel, g_y_pixel, t_g_p);
-		cout << "detected 2 aruco markers and 3 points" << endl;
-
-		// TODO
+		//is_marker(frame, pap_pix2pap_real, p_origin_pixel, g_origin_pixel, p_x_pixel, p_y_pixel, g_x_pixel, g_y_pixel, t_g_p);
+		//cout << "detected 2 aruco markers and 3 points" << endl;
+		
 		// 1. Go board grid detection
+
+
+
 		// 2. Go stone detection
+
+
 		// 3. Derive global location of a go stone.
 		
+
+		waitKey(5);
 		//원점: paper marker, real 12*12 배열 생성(mm 단위)
+		/*
 		int dis_between_lines = 90 / 11;//mm단위
 		for (int i = 0; i < 12; i++) {
 			for (int j = 0; j < 12; j++) {
@@ -191,6 +200,7 @@ int main() {
 			}
 		}
 		imshow("points", frame);
+		*/
 
 		/*
 		cout << "dot detction" << endl;
@@ -392,8 +402,8 @@ int main() {
 //--------------------------------------------------------------------------------------------------------------------------//
 
 
-
 coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p) {
+//void is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p) {
 	if (!input_image.empty()) {
 		Mat input_gray_image;
 		Mat binary_image;
@@ -453,8 +463,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 		square_points.push_back(cv::Point2f(marker_image_side_length - 1, 0));
 		square_points.push_back(cv::Point2f(marker_image_side_length - 1, marker_image_side_length - 1));
 		square_points.push_back(cv::Point2f(0, marker_image_side_length - 1));
-
-
 
 		Mat marker_image;
 		for (int i = 0; i < marker.size(); i++)
@@ -531,7 +539,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 			}
 
 			bitMatrixs.push_back(bitMatrix);
-
 		}
 
 		//final_detectedMarkers :: 시계순서로 점을 저장
@@ -549,7 +556,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				cout << "발견안됨" << endl;
 
 			else {
-
 				if (rotation != 0) {
 					//회전을 고려하여 코너를 정렬합니다. 
 					//마커의 회전과 상관없이 마커 코너는 항상 같은 순서로 저장됩니다.
@@ -568,7 +574,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				markerID.push_back(marker_id);
 				final_detectedMarkers.push_back(m);
 			}
-
 		}
 
 
@@ -705,6 +710,9 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				res.at<double>(i, 1) /= res.at<double>(i, 2);
 			}
 		}
+
+		//rectangle(paperFrame, Point(0, 0), Point(30, 30), Scalar(255, 255, 255));
+
 		imshow("perspective", paperFrame);
 
 		// Coordinate transformation between global and local coordinates.
@@ -715,19 +723,22 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 			coord.gx = Point2d(res.at<double>(4, 0), res.at<double>(4, 1));
 			coord.gy = Point2d(res.at<double>(5, 0), res.at<double>(5, 1));
 			coord.v = Point2d(res.at<double>(0, 0), res.at<double>(0, 1)) - Point2d(res.at<double>(2, 0), res.at<double>(2, 1));
-			coord.badukpan = paperFrame;
+			coord.badukpan = paperFrame.clone();
 			return coord;
 		}
-
-		else {
+		else if (detectedMarkers.size() != 2) {
 			cout << "no enogh markers ^^" << endl;
-			//return 0;
+			return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1)};
+		}
+		else if (keypoints.size() != 3) {
+			cout << "no enogh points ^^" << endl;
+			return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
 		}
 	}
 
 	else {
 		cout << "no input" << endl;
-		//return 0;
+		return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
 	}
 };
 
