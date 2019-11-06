@@ -23,10 +23,11 @@ public:
 	vector <myLine*> x_lines;
 	vector <myLine*> y_lines;
 	void insert(float rho, float theta);
-	void contourLines(vector < myLine* > & lines, const double rho_threshold, const double theta_threshold);
+	void contourLines(vector < myLine* >& lines, const double rho_threshold, const double theta_threshold);
 	void XYcontour(const double rho_threshold, const double theta_threshold);
 	int hough_detection(cv::Mat frame);
-	void drawLines(Mat & frame);
+	void drawLines(Mat& frame);
+	void removeLines();
 	~myLine_arr() {
 		while (this->x_lines.size()) {
 			delete this->x_lines.back();

@@ -18,9 +18,7 @@
 using namespace cv;
 using namespace std;
 
-int screen_width;
-int screen_hieght;
-
+char port[6] = "COM4";
 Mat dictionary = Mat(250, (6 * 6 + 7) / 8, CV_8UC4, (uchar*)DICT_6X6_1000_BYTES);
 
 typedef struct coordinate {
@@ -91,20 +89,21 @@ bool identify(const Mat& onlyBits, int& idx, int& rotation) {
 }
 
 //void is_marker(Mat frame, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p);
-coordinate is_marker(Mat frame, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p);
+coordinate is_marker(Mat frame, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel,
+	Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p);
 
-Mat find_global_real_coor(Mat input_point, Point2f pap_pix2pap_real, Point2f p_origin_pixel, Point2f g_origin_pixel, Point2f p_x_pixel, Point2f p_y_pixel, Point2f g_x_pixel, Point2f g_y_pixel, Mat t_g_p);
+Mat find_global_real_coor(Mat input_point, Mat pap_pix2pap_real, Point2f p_origin_pixel, Point2f g_origin_pixel,
+	Point2f p_x_pixel, Point2f p_y_pixel, Point2f g_x_pixel, Point2f g_y_pixel, Mat t_g_p);
 //find_global_real_coor 을 이용해서 아웃풋 좌표를 내보내주면 됨. + 로봇 좌표 추가해야됨 +시리얼로 내보내기+ 종이 잘 만들기, 고정시키기 +
 
 int main() {
 
 	char buffer = 0;
 	CSerialPort serialPort;
-	char port[6] = "COM4";
 	char* port_p = port;
 
 
-	if (!serialPort.OpenPort(port_p)) //COM25번의 포트를 오픈한다. 실패할 경우 -1을 반환한다.
+	if (!serialPort.OpenPort(port_p)) //
 	{
 		cout << "connect faliled" << endl;
 		return -1;
@@ -114,16 +113,13 @@ int main() {
 		cout << "connect successed" << endl;
 	}
 
-
 	VideoCapture cap1(0);
 	Size size(640, 360);
 	if (!cap1.isOpened())
 		cout << "카메라를 열 수 없습니다." << endl;
 
 	Mat frame;
-	cap1 >> frame;
-	screen_hieght = frame.size().height;
-	screen_width = frame.size().width;
+
 	myPoint point_arr[12][12];
 	myLine_arr line_arr = myLine_arr();
 	int dot_num = 0;
@@ -142,6 +138,8 @@ int main() {
 		coordinate coord = is_marker(frame, pap_pix2pap_real, p_origin_pixel, g_origin_pixel, p_x_pixel, p_y_pixel, g_x_pixel, g_y_pixel, t_g_p);
 		while (coord.badukpan.size().height == 1 || !line_arr.hough_detection(coord.badukpan)) {
 			cap1 >> frame;
+			line_arr.drawLines(coord.badukpan);
+			line_arr.removeLines();
 			coord = is_marker(frame, pap_pix2pap_real, p_origin_pixel, g_origin_pixel, p_x_pixel, p_y_pixel, g_x_pixel, g_y_pixel, t_g_p);
 			waitKey(10);
 		}
@@ -733,9 +731,10 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 		cout << "no input" << endl;
 		return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
 	}
-};
+}
 
-Mat find_global_real_coor(Mat input_point, Mat pap_pix2pap_real, Point2f p_origin_pixel, Point2f g_origin_pixel, Point2f p_x_pixel, Point2f p_y_pixel, Point2f g_x_pixel, Point2f g_y_pixel, Mat t_g_p) {
+Mat find_global_real_coor(Mat input_point, Mat pap_pix2pap_real, Point2f p_origin_pixel, Point2f g_origin_pixel,
+	Point2f p_x_pixel, Point2f p_y_pixel, Point2f g_x_pixel, Point2f g_y_pixel, Mat t_g_p) {
 	Mat pixel = (Mat_<double>(2, 1) << 200, 200);
 	//circle(input_image, Point2f(pixel), 5, Scalar(255, 0, 0), 1);
 	Mat test_paper_pap_pixel = pixel - (Mat_<double>(2, 1) << p_origin_pixel.x, p_origin_pixel.y);
@@ -747,4 +746,4 @@ Mat find_global_real_coor(Mat input_point, Mat pap_pix2pap_real, Point2f p_origi
 	Mat test_global_real = (Mat_<double>(2, 1) << Point2f(test_global_screen).dot(g_x_pixel), Point2f(test_global_screen).dot(g_y_pixel));
 	//cout << Point2f(test_global_real) << endl;
 	return test_global_real;
-};
+}

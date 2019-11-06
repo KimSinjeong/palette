@@ -200,3 +200,14 @@ void myLine_arr::drawLines(Mat& frame) {
 		line(frame, pt1, pt2, Scalar(0, 255, 0), 1, LINE_AA);
 	}
 }
+
+void myLine_arr::removeLines() {
+	while (this->x_lines.size()) {
+		delete this->x_lines.back();
+		this->x_lines.pop_back();
+	}
+	while (this->y_lines.size()) {
+		delete this->y_lines.back();
+		this->y_lines.pop_back();
+	}
+}
