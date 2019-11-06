@@ -61,8 +61,8 @@ void blobDetection(Mat frame, vector<KeyPoint>& blobPoints) {
 	params.minThreshold = 100;
 	//params.maxThreshold = 220;
 	params.filterByArea = true;
-	params.minArea = 40;
-	params.maxArea = 300;
+	params.minArea = 15;
+	params.maxArea = 50;
 	params.filterByColor = true;
 	params.blobColor = 0; // ¾îµÎ¿î ¾ó·è ÃßÃâ : 0, ¹àÀº ¾ó·è ÃßÃâ : 255
 	params.filterByCircularity = false;
@@ -74,8 +74,6 @@ void blobDetection(Mat frame, vector<KeyPoint>& blobPoints) {
 }
 
 int find_dot_index(myPoint points[][12], KeyPoint blob) {
-	int min_distance = 0;
-	int index = 0;
 	float dx, dy, distance;
 	for (int i = 0; i < 12; i++) {
 		for (int j = 0; j < 12; j++) {
@@ -109,7 +107,7 @@ int dotDetection(Mat frame, myPoint points[][12]) {
 
 	blobDetection(img_higher_contrast, blobPoints);
 	drawKeypoints(img_higher_contrast, blobPoints, frame, Scalar(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-	imshow("keypoints", frame);
+	imshow("dot detection", img_higher_contrast);
 	int index = OUTOFDOTS;
 	int x, y;
 	for (int i = 0; i < blobPoints.size(); i++) {
@@ -120,6 +118,7 @@ int dotDetection(Mat frame, myPoint points[][12]) {
 			if (set_dot_state(img_higher_contrast, points[x][y])) {
 				return 1;
 			}
+			//else cout << i << " the point ("<<x << ", " << y << ") is not empty" << endl;
 		}
 		//else cout << i << " not a point" << endl;
 	}
