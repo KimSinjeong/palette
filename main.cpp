@@ -22,7 +22,7 @@ char port[6] = "COM4";
 Mat dictionary = Mat(250, (6 * 6 + 7) / 8, CV_8UC4, (uchar*)DICT_6X6_1000_BYTES);
 
 typedef struct coordinate {
-	Point2d px, py, gx, gy, v;
+	Point2d px, py, gx, gy, v, pos;
 	Mat badukpan;
 };
 
@@ -88,6 +88,13 @@ bool identify(const Mat& onlyBits, int& idx, int& rotation) {
 	return idx != -1;
 }
 
+Point2d coordtf(coordinate coord, Point2d x) {
+	Mat P = (Mat_<double>(2, 2) << coord.gx.x, coord.gx.y, coord.gy.x, coord.gy.y);
+	Point2d pt = x + coord.v;
+	P = P * (Mat_<double>(2, 1) << pt.x, pt.y);
+	return Point2d(P.at<double>(0, 0), P.at<double>(1, 0));
+}
+
 //void is_marker(Mat frame, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p);
 coordinate is_marker(Mat frame, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel,
 	Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p);
@@ -102,7 +109,7 @@ int main() {
 	CSerialPort serialPort;
 	char* port_p = port;
 
-
+	/*
 	if (!serialPort.OpenPort(port_p)) //
 	{
 		cout << "connect faliled" << endl;
@@ -112,9 +119,9 @@ int main() {
 		serialPort.ConfigurePort(9600, 8, 0, 0, 0);
 		cout << "connect successed" << endl;
 	}
-
+	*/
 	VideoCapture cap1(0);
-	Size size(640, 360);
+	//Size size(640, 360);
 	if (!cap1.isOpened())
 		cout << "카메라를 열 수 없습니다." << endl;
 
@@ -141,6 +148,7 @@ int main() {
 			line_arr.drawLines(coord.badukpan);
 			line_arr.removeLines();
 			coord = is_marker(frame, pap_pix2pap_real, p_origin_pixel, g_origin_pixel, p_x_pixel, p_y_pixel, g_x_pixel, g_y_pixel, t_g_p);
+			//cout << coord.px << " " << coord.py << endl;
 			waitKey(10);
 		}
 		cout << "hough success" << endl;
@@ -218,7 +226,18 @@ int main() {
 			//////////@@@@@@@@@@@@@@@@@@@@@Serial@@@@@@@@@@@@@@@@@@@@@@@////////////////////
 			//myPoint p;
 			//@@@@ index : index of ai stone in points_arr
+			Point2f pt[4] = { -coord.v, -coord.v + coord.gx, -coord.v + coord.gy, -coord.v + coord.gx + coord.gy };
+			Point2f robotpt[4] = { Point2f(148.9029, 327.8299), Point2f(198.4039, 306.0657), Point2f(177.6139, 260.6517), Point2f(129.4032, 281.4682) };
+			vector<Point2d> robotpick(1);
+			robotpick[0] = Point2d(point_arr[index / 12][index % 12].x, point_arr[index / 12][index % 12].y) + coord.pos;
+			Mat ptf = getPerspectiveTransform(pt, robotpt);
+			perspectiveTransform(robotpick, robotpick, ptf);
 
+			for (int i = 0; i < 4; i++) {
+				cout << robotpick[0];
+			}
+
+			/*
 			cout << "send the point start" << endl;
 			for (int i = 0; i < 4; i++) {
 				p.robot_x = point_arr[index / 12][index % 12].robot_x;
@@ -371,7 +390,7 @@ int main() {
 				}
 			}
 			cout << "send points complete" << endl;
-
+			*/
 			//////////@@@@@@@@@@@@@@@@@@@@@Serial End@@@@@@@@@@@@@@@@@@@@@@@////////////////////
 			draw_board(point_arr);
 			waitKey(1000);
@@ -386,10 +405,7 @@ int main() {
 	return 0;
 }
 
-
-
 //--------------------------------------------------------------------------------------------------------------------------//
-
 
 coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p) {
 	//void is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p) {
@@ -411,7 +427,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 		for (size_t i = 0; i < contours.size(); i++)
 		{
 			approxPolyDP(Mat(contours[i]), approx, arcLength(Mat(contours[i]), true) * 0.05, true);
-
 			if (
 				approx.size() == 4 && //사각형은 4개의 vertex를 가진다. 
 				fabs(contourArea(Mat(approx))) > 1000 && //면적이 일정크기 이상이어야 한다.
@@ -419,9 +434,7 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				isContourConvex(Mat(approx)) //convex인지 검사한다.
 				)
 			{
-
 				//drawContours(input_image, contours, i, Scalar(0, 255, 0), 1, LINE_AA);
-
 				vector<cv::Point2f> points;
 				for (int j = 0; j < 4; j++)
 					points.push_back(cv::Point2f(approx[j].x, approx[j].y));
@@ -433,9 +446,7 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				double o = (v1.x * v2.y) - (v1.y * v2.x); //벡터 외적해서 시계방향인지 판단, 음수면 반시계방향이라는 거라서 1번, 3번 점 을 바꿔준다.
 				if (o < 0.0)
 					swap(points[1], points[3]);
-
 				marker.push_back(points);
-
 			}
 		}
 
@@ -446,8 +457,8 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 		vector<Point2f> square_points;
 
 		int marker_image_side_length = 80; //마커 6x6크기일때 검은색 테두리 영역 포함한 크기는 8x8
-									//이후 단계에서 이미지를 격자로 분할할 시 셀하나의 픽셀너비를 10으로 한다면
-									//마커 이미지의 한변 길이는 80
+		//이후 단계에서 이미지를 격자로 분할할 시 셀하나의 픽셀너비를 10으로 한다면
+		//마커 이미지의 한변 길이는 80
 		square_points.push_back(cv::Point2f(0, 0));
 		square_points.push_back(cv::Point2f(marker_image_side_length - 1, 0));
 		square_points.push_back(cv::Point2f(marker_image_side_length - 1, marker_image_side_length - 1));
@@ -484,14 +495,10 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				{
 					int cellX = x * cellSize;
 					int cellY = y * cellSize;
-
 					cv::Mat cell = marker_image(Rect(cellX, cellY, cellSize, cellSize));
-
 					int total_cell_count = countNonZero(cell);
-
 					if (total_cell_count > (cellSize * cellSize) / 2)
 						white_cell_count++; //태두리에 흰색영역이 있다면, 셀내의 픽셀이 절반이상 흰색이면 흰색영역으로 본다 
-
 				}
 			}
 
@@ -617,7 +624,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				g_x_pixel = g_x_pixel / sqrt(g_x_pixel.dot(g_x_pixel)); //크기 1로 만들기
 				g_y_pixel = g_y_pixel / sqrt(g_y_pixel.dot(g_y_pixel)); //크기 1로 만들기
 			}
-
 		}
 
 		Point2f p_x_blob;
@@ -642,9 +648,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 			}
 		}
 
-		imshow("keypoints", input_image);
-
-
 		// 문제!! paper origin 기준 projection 을 했을 때 global marker 가  
 
 		// 첫번째 방법 (paper origin을 기준으로 한 projection matrix 하나만 구한다.)
@@ -657,12 +660,12 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 		// 세번째 방법 (paper origin을 기준으로 projection matrix 구한 image 에서 다시 global 원점을 기준으로 한 transform을 구한다.)
 
 		// transMat_paper 행렬 구하기		
-		Point TopLeft = Point(p_origin_pixel.x, p_origin_pixel.y);
-		Point TopRight = p_x_blob;
-		Point BottomRight = p_xy_blob;
-		Point BottomLeft = p_y_blob;
+		Point2f TopLeft = p_origin_pixel;
+		Point2f TopRight = p_x_blob;
+		Point2f BottomRight = p_xy_blob;
+		Point2f BottomLeft = p_y_blob;
 
-		vector<Point>rect;
+		vector<Point2f>rect;
 		rect.push_back(TopLeft);
 		rect.push_back(TopRight);
 		rect.push_back(BottomRight);
@@ -671,65 +674,69 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 		Point2f src[4], dst[4];
 		src[0] = Point2f(TopLeft.x, TopLeft.y);
 		src[1] = Point2f(TopRight.x, TopRight.y);
-		src[2] = Point2f(BottomRight.x, BottomRight.y);
-		src[3] = Point2f(BottomLeft.x, BottomLeft.y);
+		src[3] = Point2f(BottomRight.x, BottomRight.y);
+		src[2] = Point2f(BottomLeft.x, BottomLeft.y);
 
 		dst[0] = SCALAR * Point2f(0, 0);
-		dst[1] = SCALAR * Point2f(122.0, 0);
-		dst[2] = SCALAR * Point2f(122.0, 122.0);
-		dst[3] = SCALAR * Point2f(0, 122.0);
+		dst[1] = SCALAR * Point2f(150.0, 0);
+		dst[3] = SCALAR * Point2f(150.0, 150.0);
+		dst[2] = SCALAR * Point2f(0, 150.0);
 
 		Mat transMat_paper = getPerspectiveTransform(src, dst);
 		Mat paperFrame;
 
-		warpPerspective(input_gray_image, paperFrame, transMat_paper, Size(SCALAR * 122, SCALAR * 122));
+		imshow("keypoints", input_image);
 
-		Mat res;
+		warpPerspective(input_gray_image, paperFrame, transMat_paper, Size(SCALAR * 150, SCALAR * 150));
+
+		vector<Point2d> pt(6);
 		if (detectedMarkers.size() == 2) {
 			// Homography matrix transMat_paper, transform origin points
-			Mat pt = (Mat_<double>(6, 3) << p_origin_pixel.x, p_origin_pixel.y, 1, p_x_pixel.x, p_x_pixel.y, 1,
-				p_y_pixel.x, p_y_pixel.y, 1, g_origin_pixel.x, g_origin_pixel.y, 1, g_x_pixel.x, g_x_pixel.y, 1,
-				g_y_pixel.x, g_y_pixel.y, 1);
-			pt = pt.t();
-			res = (transMat_paper * pt).t();
-			// Change to homogeneous
-			for (int i = 0; i < res.size().height; i++) {
-				res.at<double>(i, 0) /= res.at<double>(i, 2);
-				res.at<double>(i, 1) /= res.at<double>(i, 2);
+			vector<Point2d> ptm(6);
+			for (int i = 0; i < detectedMarkers.size(); i++)
+			{
+				if (markerID.at(i) == 0) {
+					ptm[0] = final_detectedMarkers.at(i).at(0);
+					ptm[1] = final_detectedMarkers.at(i).at(1);
+					ptm[2] = final_detectedMarkers.at(i).at(3);
+				}
+				else {
+					ptm[3] = final_detectedMarkers.at(i).at(0);
+					ptm[4] = final_detectedMarkers.at(i).at(1);
+					ptm[5] = final_detectedMarkers.at(i).at(3);
+				}
+				perspectiveTransform(ptm, pt, transMat_paper);
 			}
 		}
 
-		//rectangle(paperFrame, Point(0, 0), Point(30, 30), Scalar(255, 255, 255));
-
 		imshow("perspective", paperFrame);
 
-		Point2d pos = Point2d(20, 30);
-		paperFrame = paperFrame(Rect((int)pos.x, (int)pos.y, 210, 210));
-
+		Point2d pos = Point2d(20, 40);
+		paperFrame = paperFrame(Rect((int)pos.x, (int)pos.y, 260, 260));
 		// Coordinate transformation between global and local coordinates.
 		if (detectedMarkers.size() == 2 && keypoints.size() == 3) {
 			coordinate coord;
-			coord.px = Point2d(res.at<double>(1, 0), res.at<double>(1, 1));
-			coord.py = Point2d(res.at<double>(2, 0), res.at<double>(2, 1));
-			coord.gx = Point2d(res.at<double>(4, 0), res.at<double>(4, 1));
-			coord.gy = Point2d(res.at<double>(5, 0), res.at<double>(5, 1));
-			coord.v = Point2d(res.at<double>(0, 0), res.at<double>(0, 1)) - Point2d(res.at<double>(2, 0), res.at<double>(2, 1)) + pos;
+			coord.px = pt[1] - pt[0]; coord.py = pt[2] - pt[0]; coord.gx = pt[4] - pt[3]; coord.gy = pt[5] - pt[3];
+			coord.px = coord.px / sqrt(coord.px.dot(coord.px)); coord.py = coord.py / sqrt(coord.py.dot(coord.py));
+			coord.pos = pos / SCALAR;
+			//coord.gx = coord.gx / sqrt(coord.gx.dot(coord.gx)); coord.gy = coord.gy / sqrt(coord.gy.dot(coord.gy));
+			coord.v = pt[0] - pt[3];
 			coord.badukpan = paperFrame.clone();
 			return coord;
 		}
 		else if (detectedMarkers.size() != 2) {
 			//cout << "no enogh markers ^^" << endl;
-			return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
+			return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
 		}
 		else if (keypoints.size() != 3) {
 			//cout << "no enogh points ^^" << endl;
-			return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
+			return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
 		}
 	}
 
 	else {
 		cout << "no input" << endl;
-		return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
+		return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
 	}
 }
 
