@@ -40,51 +40,29 @@ void myLine_arr::contourLines(vector < myLine* >& lines, const double rho_thresh
 		double disDiff = abs(abs((double)new_lines.back()->rho) - abs((double)lines.back()->rho));
 		double slopeDiff = abs((double)new_lines.back()->theta - (double)lines.back()->theta);
 		// (slopeDiff > CV_PI / 2) slopeDiff = CV_PI - slopeDiff;
-
 		if (slopeDiff > CV_PI / 9) {
-
 			//cout << "obstacles detected : slopeDiff "<< slopeDiff << " / slope : " << new_lines.back()->theta << " / " << lines.back()->theta << endl;
-
 			break;
-
 		}
-
 		else if (disDiff < rho_threshold && slopeDiff < theta_threshold) {
-
 			//else if (disDiff < rho_threshold ) {
-
 			new_lines.back()->rho = (new_lines.back()->rho * new_lines.back()->index + lines.back()->rho) / (new_lines.back()->index + 1);
-
 			new_lines.back()->theta = (new_lines.back()->theta * new_lines.back()->index + lines.back()->theta) / (new_lines.back()->index + 1);
-
 			new_lines.back()->index++;
-
 			lines.pop_back();
-
 		}
-
 		else {
-
 			//if (abs(disDiff) > rho_threshold) cout << "rho    " << disDiff<<endl;
-
 			//if (abs(slopeDiff) > theta_threshold) cout << "theta " << abs(slopeDiff)*180/CV_PI<<endl;
-
 			new_lines.push_back(lines.back());
-
 			lines.pop_back();
-
 		}
-
 	}
 
 	while (new_lines.size() != 0) {
-
 		lines.push_back(new_lines.back());
-
 		new_lines.pop_back();
-
 	}
-
 }
 
 

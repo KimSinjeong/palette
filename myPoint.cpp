@@ -61,7 +61,7 @@ void blobDetection(Mat frame, vector<KeyPoint>& blobPoints) {
 	params.minThreshold = 100;
 	//params.maxThreshold = 220;
 	params.filterByArea = true;
-	params.minArea = 15;
+	params.minArea = 20;
 	params.maxArea = 50;
 	params.filterByColor = true;
 	params.blobColor = 0; // ¾îµÎ¿î ¾ó·è ÃßÃâ : 0, ¹àÀº ¾ó·è ÃßÃâ : 255

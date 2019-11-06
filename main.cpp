@@ -72,7 +72,7 @@ bool identify(const Mat& onlyBits, int& idx, int& rotation) {
 		//각 마커 ID
 		for (unsigned int r = 0; r < 4; r++) {
 			int currentHamming = hal::normHamming(
-				dictionary.ptr(m) + r * candidateBytes.cols,
+				dictionary.ptr(m) + r*candidateBytes.cols,
 				candidateBytes.ptr(),
 				candidateBytes.cols);
 
@@ -103,7 +103,7 @@ int main() {
 	char port[6] = "COM4";
 	char* port_p = port;
 
-
+	/*
 	if (!serialPort.OpenPort(port_p)) //COM25번의 포트를 오픈한다. 실패할 경우 -1을 반환한다.
 	{
 		cout << "connect faliled" << endl;
@@ -113,7 +113,7 @@ int main() {
 		serialPort.ConfigurePort(9600, 8, 0, 0, 0);
 		cout << "connect successed" << endl;
 	}
-
+	*/
 
 	VideoCapture cap1(0);
 	Size size(640, 360);
@@ -216,7 +216,7 @@ int main() {
 
 			if (index == -3) continue;
 			myPoint p;
-
+			/*
 			//////////@@@@@@@@@@@@@@@@@@@@@Serial@@@@@@@@@@@@@@@@@@@@@@@////////////////////
 			//myPoint p;
 			//@@@@ index : index of ai stone in points_arr
@@ -373,7 +373,7 @@ int main() {
 				}
 			}
 			cout << "send points complete" << endl;
-
+			*/
 			//////////@@@@@@@@@@@@@@@@@@@@@Serial End@@@@@@@@@@@@@@@@@@@@@@@////////////////////
 			draw_board(point_arr);
 			waitKey(1000);
@@ -677,14 +677,14 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 		src[3] = Point2f(BottomLeft.x, BottomLeft.y);
 
 		dst[0] = SCALAR * Point2f(0, 0);
-		dst[1] = SCALAR * Point2f(122.0, 0);
-		dst[2] = SCALAR * Point2f(122.0, 122.0);
-		dst[3] = SCALAR * Point2f(0, 122.0);
+		dst[1] = SCALAR * Point2f(150.0, 0);
+		dst[2] = SCALAR * Point2f(150.0, 150.0);
+		dst[3] = SCALAR * Point2f(0, 150.0);
 
 		Mat transMat_paper = getPerspectiveTransform(src, dst);
 		Mat paperFrame;
 
-		warpPerspective(input_gray_image, paperFrame, transMat_paper, Size(SCALAR * 122, SCALAR * 122));
+		warpPerspective(input_gray_image, paperFrame, transMat_paper, Size(SCALAR * 150, SCALAR * 150));
 
 		Mat res;
 		if (detectedMarkers.size() == 2) {
@@ -702,11 +702,9 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 		}
 
 		//rectangle(paperFrame, Point(0, 0), Point(30, 30), Scalar(255, 255, 255));
-
 		imshow("perspective", paperFrame);
-
-		Point2d pos = Point2d(20, 30);
-		paperFrame = paperFrame(Rect((int)pos.x, (int)pos.y, 210, 210));
+		Point2d pos = Point2d(30, 40);
+		paperFrame = paperFrame(Rect((int)pos.x, (int)pos.y, 250, 250));
 
 		// Coordinate transformation between global and local coordinates.
 		if (detectedMarkers.size() == 2 && keypoints.size() == 3) {
@@ -715,7 +713,7 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 			coord.py = Point2d(res.at<double>(2, 0), res.at<double>(2, 1));
 			coord.gx = Point2d(res.at<double>(4, 0), res.at<double>(4, 1));
 			coord.gy = Point2d(res.at<double>(5, 0), res.at<double>(5, 1));
-			coord.v = Point2d(res.at<double>(0, 0), res.at<double>(0, 1)) - Point2d(res.at<double>(2, 0), res.at<double>(2, 1)) + pos;
+			coord.v = Point2d(res.at<double>(0, 0), res.at<double>(0, 1)) - Point2d(res.at<double>(2, 0), res.at<double>(2, 1)) + pos/SCALAR;
 			coord.badukpan = paperFrame.clone();
 			return coord;
 		}
