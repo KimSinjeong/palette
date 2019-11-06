@@ -11,19 +11,17 @@
 using namespace std;
 using namespace cv;
 
-
-
 vector<int> joint_arc(myPoint p) {// in mm
 	//needed to 0 <= joint <= 4096 (XH, XM) or 0 <= joint <= 1024 (AX)
-	int d1 = 120.75 + 5.2, L2 = 201.5, L3 = 201.5, e1 = 37.5, h1 = 45;//  e1: end effector to end of 3rd joint, h1 : floor to pen center
+	double d1 = 120.75 + 5.2, L2 = 200.5, L3 = 191.5, e1 = 37.5, h1 = 59.4;//  e1: end effector to end of 3rd joint, h1 : floor to pen center
 
-	int p_x, p_y, p_z;
-	int q1, q2, q3;
+	double p_x, p_y, p_z;
+	double q1, q2, q3;
 	// q1
 	if (p.robot_x > 0)
-		q1 = atan(p.robot_y / p.robot_x);
+		q1 = atan((double)p.robot_y / (double)p.robot_x);
 	else if (p.robot_x < 0)
-		q1 = atan(p.robot_y / p.robot_x) + CV_PI;
+		q1 = atan((double)p.robot_y / (double)p.robot_x) + CV_PI;
 	else
 		if (p.robot_y > 0)
 			q1 = CV_PI / 2;
@@ -39,7 +37,7 @@ vector<int> joint_arc(myPoint p) {// in mm
 
 	// q2
 	Mat q2_vec_sol = (Mat_<double>(2, 2) << L2 + L3 * cos(q3), -L3 * sin(q3), L3 * sin(q3), L2 + L3 * cos(q3));
-	Mat q2_vec = q2_vec_sol.inv() * (Mat_<double>(2, 1) << cos(q1) * p.robot_x + sin(q1) * p.robot_y, p.robot_z - d1);
+	Mat q2_vec = q2_vec_sol.inv() * (Mat_<double>(2, 1) << cos(q1) * p_x + sin(q1) * p_y, p_z - d1);
 	q2 = atan(q2_vec.at<double>(1) / q2_vec.at<double>(0));
 
 	vector<int>joint(4); // = zeros(1, 4);

@@ -25,7 +25,7 @@ public:
 		x = _x; y = _y;
 		state = EMPTY;
 		weight = 0;
-		robot_z = 20;
+		robot_z = 50;
 	}
 };
 
@@ -36,7 +36,7 @@ void drawDots(Mat frame, myPoint points[][12]);
 void blobDetection(Mat frame, vector<KeyPoint>& blobPoints);
 int find_dot_index(myPoint points[][12], KeyPoint blob);
 int dotDetection(Mat frame, myPoint points[][12]);
-void to_state_arr(myPoint (*points)[12], int (*state)[12]);
+void to_state_arr(myPoint(*points)[12], int(*state)[12]);
 void to_point_arr(int(*state)[12], myPoint(*points)[12]);
 
 #endif

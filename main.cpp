@@ -18,7 +18,7 @@
 using namespace cv;
 using namespace std;
 
-char port[6] = "COM4";
+int cam_num = 0;
 Mat dictionary = Mat(250, (6 * 6 + 7) / 8, CV_8UC4, (uchar*)DICT_6X6_1000_BYTES);
 
 typedef struct coordinate {
@@ -107,9 +107,12 @@ int main() {
 
 	char buffer = 0;
 	CSerialPort serialPort;
+	char port[6];
+	cout << "Enter Port" << endl;
+	cin >> port;
 	char* port_p = port;
 
-	/*
+	
 	if (!serialPort.OpenPort(port_p)) //
 	{
 		cout << "connect faliled" << endl;
@@ -119,7 +122,7 @@ int main() {
 		serialPort.ConfigurePort(9600, 8, 0, 0, 0);
 		cout << "connect successed" << endl;
 	}
-	*/
+
 	VideoCapture cap1(0);
 	//Size size(640, 360);
 	if (!cap1.isOpened())
@@ -232,165 +235,152 @@ int main() {
 			robotpick[0] = Point2d(point_arr[index / 12][index % 12].x, point_arr[index / 12][index % 12].y) + coord.pos;
 			Mat ptf = getPerspectiveTransform(pt, robotpt);
 			perspectiveTransform(robotpick, robotpick, ptf);
+			cout << robotpick[0];
 
-			for (int i = 0; i < 4; i++) {
-				cout << robotpick[0];
-			}
-
-			/*
-			cout << "send the point start" << endl;
-			for (int i = 0; i < 4; i++) {
-				p.robot_x = point_arr[index / 12][index % 12].robot_x;
-				p.robot_y = point_arr[index / 12][index % 12].robot_y;
-				p.robot_z = point_arr[index / 12][index % 12].robot_z - 5 * i;
-
-				vector<int> joint;
-				joint = joint_arc(p);
-
-				vector <char> packet;
-				packet = make_paket(joint);
-				for (int i = 0; i < packet.size(); i++) {
-					if (serialPort.WriteByte(char(packet.at(i))))
-					{
-						//cout << i << " : " << +char(packet.at(i)) << " ";
-						cout << "input : " << char(packet.at(i)) << endl;
-						BYTE byte1;
-						serialPort.ReadByte(byte1);
-						cout << "output : " << byte1 << endl;
-					}
-					//cout << "send Command success" << endl;
-
-				}
-				cout << endl;
-			}
-			//1
-			p.robot_x = point_arr[index / 12][index % 12].robot_x + 0.3;
-			p.robot_y = point_arr[index / 12][index % 12].robot_y + 0.3;
+			p.robot_x = point_arr[index / 12][index % 12].robot_x;
+			p.robot_y = point_arr[index / 12][index % 12].robot_y;
 			p.robot_z = point_arr[index / 12][index % 12].robot_z;
 
+			cout << "send the point start" << endl;
+			p.robot_x += 3;
+			//go to first point
 			vector<int> joint;
 			joint = joint_arc(p);
+
 			vector <char> packet;
 			packet = make_paket(joint);
-			for (int i = 0; i < packet.size(); i++) {
-				if (serialPort.WriteByte(char(packet.at(i))))
+			for (int j = 0; j < packet.size(); j++) {
+				if (serialPort.WriteByte(char(packet.at(j))))
 				{
-					cout << "input : " << char(packet.at(i)) << endl;
-					BYTE byte1;
-					serialPort.ReadByte(byte1);
-					cout << "output : " << byte1 << endl;
+					//cout << i << " : " << +char(packet.at(i)) << " ";
+					cout << "input : " << char(packet.at(j)) << endl;
+					//BYTE byte1;
+					//serialPort.ReadByte(byte1);
+					//cout << "output : " << byte1 << endl;
 				}
 				//cout << "send Command success" << endl;
 
 			}
-			//2
-			p.robot_x = point_arr[index / 12][index % 12].robot_x - 0.3;
-			p.robot_y = point_arr[index / 12][index % 12].robot_y + 0.3;
-			p.robot_z = point_arr[index / 12][index % 12].robot_z;
+			waitKey(3000);
+			cout << "send the point start" << endl;
+			for (int i = 50; i > 8; i--) {
+				p.robot_z = i;
 
-			//vector<int> joint;
-			joint = joint_arc(p);
-
-			//vector <char> packet;
-			packet = make_paket(joint);
-			for (int i = 0; i < packet.size(); i++) {
-				if (serialPort.WriteByte(char(packet.at(i))))
-				{
-					cout << "input : " << char(packet.at(i)) << endl;
-					BYTE byte1;
-					serialPort.ReadByte(byte1);
-					cout << "output : " << byte1 << endl;
-				}
-				//cout << "send Command success" << endl;
-
-			}
-			//3
-			p.robot_x = point_arr[index / 12][index % 12].robot_x - 0.3;
-			p.robot_y = point_arr[index / 12][index % 12].robot_y - 0.3;
-			p.robot_z = point_arr[index / 12][index % 12].robot_z;
-
-			//vector<int> joint;
-			joint = joint_arc(p);
-
-			//vector <char> packet;
-			packet = make_paket(joint);
-			for (int i = 0; i < packet.size(); i++) {
-				if (serialPort.WriteByte(char(packet.at(i))))
-				{
-					cout << "input : " << char(packet.at(i)) << endl;
-					BYTE byte1;
-					serialPort.ReadByte(byte1);
-					cout << "output : " << byte1 << endl;
-				}
-				//cout << "send Command success" << endl;
-
-			}
-			//4
-			p.robot_x = point_arr[index / 12][index % 12].robot_x + 0.3;
-			p.robot_y = point_arr[index / 12][index % 12].robot_y - 0.3;
-			p.robot_z = point_arr[index / 12][index % 12].robot_z;
-
-			//vector<int> joint;
-			joint = joint_arc(p);
-
-			//vector <char> packet;
-			packet = make_paket(joint);
-			for (int i = 0; i < packet.size(); i++) {
-				if (serialPort.WriteByte(char(packet.at(i))))
-				{
-					cout << "input : " << char(packet.at(i)) << endl;
-					BYTE byte1;
-					serialPort.ReadByte(byte1);
-					cout << "output : " << byte1 << endl;
-				}
-				//cout << "send Command success" << endl;
-
-			}
-			//5
-			p.robot_x = point_arr[index / 12][index % 12].robot_x + 0.3;
-			p.robot_y = point_arr[index / 12][index % 12].robot_y + 0.3;
-			p.robot_z = point_arr[index / 12][index % 12].robot_z;
-
-			//vector<int> joint;
-			joint = joint_arc(p);
-
-			//vector <char> packet;
-			packet = make_paket(joint);
-			for (int i = 0; i < packet.size(); i++) {
-				if (serialPort.WriteByte(char(packet.at(i))))
-				{
-					cout << "input : " << char(packet.at(i)) << endl;
-					BYTE byte1;
-					serialPort.ReadByte(byte1);
-					cout << "output : " << byte1 << endl;
-				}
-				//cout << "send Command success" << endl;
-
-			}
-			for (int i = 0; i < 4; i++) {
-				p.robot_x = point_arr[index / 12][index % 12].robot_x;
-				p.robot_y = point_arr[index / 12][index % 12].robot_y;
-				p.robot_z = point_arr[index / 12][index % 12].robot_z + 5 * i;
-
-				vector<int> joint;
 				joint = joint_arc(p);
-
-				vector <char> packet;
 				packet = make_paket(joint);
-				for (int i = 0; i < packet.size(); i++) {
-					if (serialPort.WriteByte(char(packet.at(i))))
+				for (int j = 0; j < packet.size(); j++) {
+					if (serialPort.WriteByte(char(packet.at(j))))
 					{
-						cout << "input : " << char(packet.at(i)) << endl;
-						BYTE byte1;
-						serialPort.ReadByte(byte1);
-						cout << "output : " << byte1 << endl;
+						//cout << i << " : " << +char(packet.at(i)) << " ";
+						cout << "input : " << char(packet.at(j)) << endl;
+						//BYTE byte1;
+						//serialPort.ReadByte(byte1);
+						//cout << "output : " << byte1 << endl;
 					}
 					//cout << "send Command success" << endl;
 
 				}
+				cout << "delay" << endl;
+				waitKey(50);
+			}
+			waitKey(300);
+			//1
+			p.robot_x -= 3;
+			p.robot_y += 3;
+			joint = joint_arc(p);
+			packet = make_paket(joint);
+			for (int i = 0; i < packet.size(); i++) {
+				if (serialPort.WriteByte(char(packet.at(i))))
+				{
+					cout << "input : " << char(packet.at(i)) << endl;
+					//BYTE byte1;
+					//serialPort.ReadByte(byte1);
+					//cout << "output : " << byte1 << endl;
+				}
+				//cout << "send Command success" << endl;
+
+			}
+			waitKey(300);
+			//2
+			p.robot_x -= 3;
+			p.robot_y -= 3;
+			//vector<int> joint;
+			joint = joint_arc(p);
+
+			//vector <char> packet;
+			packet = make_paket(joint);
+			for (int i = 0; i < packet.size(); i++) {
+				if (serialPort.WriteByte(char(packet.at(i))))
+				{
+					cout << "input : " << char(packet.at(i)) << endl;
+					//BYTE byte1;
+					//serialPort.ReadByte(byte1);
+					//cout << "output : " << byte1 << endl;
+				}
+				//cout << "send Command success" << endl;
+
+			}
+			waitKey(300);
+			//3
+			p.robot_x += 3;
+			p.robot_y -= 3;
+
+			//vector<int> joint;
+			joint = joint_arc(p);
+
+			//vector <char> packet;
+			packet = make_paket(joint);
+			for (int i = 0; i < packet.size(); i++) {
+				if (serialPort.WriteByte(char(packet.at(i))))
+				{
+					cout << "input : " << char(packet.at(i)) << endl;
+					//BYTE byte1;
+					//serialPort.ReadByte(byte1);
+					//cout << "output : " << byte1 << endl;
+				}
+				//cout << "send Command success" << endl;
+
+			}
+			waitKey(300);
+			//4
+			p.robot_x += 3;
+			p.robot_y += 3;
+			//vector<int> joint;
+			joint = joint_arc(p);
+			packet = make_paket(joint);
+			for (int i = 0; i < packet.size(); i++) {
+				if (serialPort.WriteByte(char(packet.at(i))))
+				{
+					cout << "input : " << char(packet.at(i)) << endl;
+					//BYTE byte1;
+					//serialPort.ReadByte(byte1);
+					//cout << "output : " << byte1 << endl;
+				}
+				//cout << "send Command success" << endl;
+
+			}
+			waitKey(300);
+
+			// z up
+			for (int i = 9; i < 51; i++) {
+				p.robot_z = i;
+
+				joint = joint_arc(p);
+				packet = make_paket(joint);
+				for (int j = 0; j < packet.size(); j++) {
+					if (serialPort.WriteByte(char(packet.at(j))))
+					{
+						cout << "input : " << char(packet.at(j)) << endl;
+						//BYTE byte1;
+						//serialPort.ReadByte(byte1);
+						//cout << "output : " << byte1 << endl;
+					}
+					//cout << "send Command success" << endl;
+				}
+				waitKey(50);
 			}
 			cout << "send points complete" << endl;
-			*/
+
 			//////////@@@@@@@@@@@@@@@@@@@@@Serial End@@@@@@@@@@@@@@@@@@@@@@@////////////////////
 			draw_board(point_arr);
 			waitKey(1000);
