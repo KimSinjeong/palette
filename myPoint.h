@@ -18,7 +18,7 @@ public:
 	int x, y; //ÇÈ¼¿ÁÂÇ¥
 	int global_x, global_y; //¿øÁ¡: global marker, real -> ¿øÁ¡À» ·Îº¿À¸·Î ¹Ù²ã¾ßµÊ
 	int paper_x, paper_y; //¿øÁ¡ :paper marker, real 
-	int robot_x, robot_y, robot_z;
+	double robot_x, robot_y, robot_z;
 	int state;
 	float weight;
 	myPoint(int _x = 0, int _y = 0) {

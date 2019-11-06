@@ -237,9 +237,9 @@ int main() {
 			perspectiveTransform(robotpick, robotpick, ptf);
 			cout << robotpick[0];
 
-			p.robot_x = point_arr[index / 12][index % 12].robot_x;
-			p.robot_y = point_arr[index / 12][index % 12].robot_y;
-			p.robot_z = point_arr[index / 12][index % 12].robot_z;
+			p.robot_x = robotpick[0].x;
+			p.robot_y = robotpick[0].y;
+			p.robot_z = 50;
 
 			cout << "send the point start" << endl;
 			p.robot_x += 3;
