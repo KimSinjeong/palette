@@ -58,11 +58,11 @@ void drawDots(Mat frame, myPoint points[][12]) {
 
 void blobDetection(Mat frame, vector<KeyPoint>& blobPoints) {
 	SimpleBlobDetector::Params params;
-	params.minThreshold = 100;
+	params.minThreshold = 130;
 	//params.maxThreshold = 220;
 	params.filterByArea = true;
-	params.minArea = 20;
-	params.maxArea = 50;
+	params.minArea = 40;
+	params.maxArea = 80;
 	params.filterByColor = true;
 	params.blobColor = 0; // ¾îµÎ¿î ¾ó·è ÃßÃâ : 0, ¹àÀº ¾ó·è ÃßÃâ : 255
 	params.filterByCircularity = false;

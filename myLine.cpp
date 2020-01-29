@@ -91,7 +91,7 @@ int myLine_arr::hough_detection(cv::Mat frame) {
 
 	Mat img_dilate, dst;
 
-	Canny(frame, dst, 40, 120, 3);
+	Canny(frame, dst, 40, 150, 3);
 
 	//....
 
@@ -111,7 +111,7 @@ int myLine_arr::hough_detection(cv::Mat frame) {
 
 	vector<Vec2f> lines; // will hold the results of the detection
 
-	HoughLines(dst, lines, 1, CV_PI / 180, 160); // runs the actual detection
+	HoughLines(dst, lines, 1, CV_PI / 180, 200); // runs the actual detection
 
 
 
@@ -124,13 +124,13 @@ int myLine_arr::hough_detection(cv::Mat frame) {
 	}
 
 	//this->drawLines(frame);
+	//imshow("gridsample", frame);
 
 	double rho_threshold = 5;
 
 	double theta_threshold = 20 * CV_PI / 180;
 
 	this->XYcontour(rho_threshold, theta_threshold);
-
 
 
 	if (this->x_lines.size() == 12 && this->y_lines.size() == 12) return 1;

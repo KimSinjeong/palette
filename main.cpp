@@ -19,8 +19,11 @@ using namespace cv;
 using namespace std;
 
 int cam_num = 0;
+
+// 나중에 QR코드 인식에 쓸 dictionary
 Mat dictionary = Mat(250, (6 * 6 + 7) / 8, CV_8UC4, (uchar*)DICT_6X6_1000_BYTES);
 
+// TODO: 무엇에 대한 coordinate struct인가??
 typedef struct coordinate {
 	Point2d px, py, gx, gy, v, pos;
 	Mat badukpan;
@@ -54,6 +57,7 @@ Mat getByteListFromBits(const Mat& bits) {
 	return candidateByteList;
 }
 
+// Hamming distance를 이용해 어떤 QR코드인지 알아내는 함수인듯
 bool identify(const Mat& onlyBits, int& idx, int& rotation) {
 	int markerSize = 6;
 
@@ -88,6 +92,7 @@ bool identify(const Mat& onlyBits, int& idx, int& rotation) {
 	return idx != -1;
 }
 
+// 좌표 변환 (참조하는 곳이 없는 것으로 보임)
 Point2d coordtf(coordinate coord, Point2d x) {
 	Mat P = (Mat_<double>(2, 2) << coord.gx.x, coord.gx.y, coord.gy.x, coord.gy.y);
 	Point2d pt = x + coord.v;
@@ -104,16 +109,13 @@ Mat find_global_real_coor(Mat input_point, Mat pap_pix2pap_real, Point2f p_origi
 //find_global_real_coor 을 이용해서 아웃풋 좌표를 내보내주면 됨. + 로봇 좌표 추가해야됨 +시리얼로 내보내기+ 종이 잘 만들기, 고정시키기 +
 
 int main() {
-
 	char buffer = 0;
 	CSerialPort serialPort;
 	char port[6];
 	cout << "Enter Port" << endl;
 	cin >> port;
-	char* port_p = port;
 
-	
-	if (!serialPort.OpenPort(port_p)) //
+	if (!serialPort.OpenPort(port))
 	{
 		cout << "connect faliled" << endl;
 		return -1;
@@ -123,7 +125,7 @@ int main() {
 		cout << "connect successed" << endl;
 	}
 
-	VideoCapture cap1(0);
+	VideoCapture cap1(2);
 	//Size size(640, 360);
 	if (!cap1.isOpened())
 		cout << "카메라를 열 수 없습니다." << endl;
@@ -230,12 +232,14 @@ int main() {
 			//myPoint p;
 			//@@@@ index : index of ai stone in points_arr
 			Point2f pt[4] = { -coord.v, -coord.v + coord.gx, -coord.v + coord.gy, -coord.v + coord.gx + coord.gy };
+			cout << pt[0] << " " << pt[1] << " " << pt[2] << " " << pt[3] << endl;
 			Point2f robotpt[4] = { Point2f(148.9029, 327.8299), Point2f(198.4039, 306.0657), Point2f(177.6139, 260.6517), Point2f(129.4032, 281.4682) };
 			vector<Point2d> robotpick(1);
 			robotpick[0] = Point2d(point_arr[index / 12][index % 12].x, point_arr[index / 12][index % 12].y) + coord.pos;
 			Mat ptf = getPerspectiveTransform(pt, robotpt);
+			cout << ptf << endl;
 			perspectiveTransform(robotpick, robotpick, ptf);
-			cout << robotpick[0];
+			cout << robotpick[0] << endl;
 
 			p.robot_x = robotpick[0].x;
 			p.robot_y = robotpick[0].y;
@@ -712,14 +716,17 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 			//coord.gx = coord.gx / sqrt(coord.gx.dot(coord.gx)); coord.gy = coord.gy / sqrt(coord.gy.dot(coord.gy));
 			coord.v = pt[0] - pt[3];
 			coord.badukpan = paperFrame.clone();
+			cout << "Proper return" << endl;
 			return coord;
 		}
 		else if (detectedMarkers.size() != 2) {
-			//cout << "no enogh markers ^^" << endl;
+			cout << "no enogh markers ^^" << endl;
+			cout << detectedMarkers.size() << endl;
 			return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
 		}
 		else if (keypoints.size() != 3) {
-			//cout << "no enogh points ^^" << endl;
+			cout << "no enogh points ^^" << endl;
+			cout << detectedMarkers.size() << endl;
 			return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
 		}
 	}
