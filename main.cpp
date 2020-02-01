@@ -14,6 +14,7 @@
 #include <opencv2/imgproc.hpp>
 
 #define SCALAR 2
+#define DEBUG 1
 
 using namespace cv;
 using namespace std;
@@ -145,17 +146,16 @@ int main() {
 
 	while (1)
 	{
-		cap1 >> frame;
 		//2개의 아루코 마커와 3개의 점이 인식될때까지
-		coordinate coord = is_marker(frame, pap_pix2pap_real, p_origin_pixel, g_origin_pixel, p_x_pixel, p_y_pixel, g_x_pixel, g_y_pixel, t_g_p);
-		while (coord.badukpan.size().height == 1 || !line_arr.hough_detection(coord.badukpan)) {
+		coordinate coord;
+		do {
 			cap1 >> frame;
 			line_arr.drawLines(coord.badukpan);
 			line_arr.removeLines();
 			coord = is_marker(frame, pap_pix2pap_real, p_origin_pixel, g_origin_pixel, p_x_pixel, p_y_pixel, g_x_pixel, g_y_pixel, t_g_p);
 			//cout << coord.px << " " << coord.py << endl;
 			waitKey(10);
-		}
+		} while (coord.badukpan.size().height == 1 || !line_arr.hough_detection(coord.badukpan));
 		cout << "hough success" << endl;
 		Mat image = coord.badukpan.clone();
 
@@ -233,7 +233,7 @@ int main() {
 			//@@@@ index : index of ai stone in points_arr
 			Point2f pt[4] = { -coord.v, -coord.v + coord.gx, -coord.v + coord.gy, -coord.v + coord.gx + coord.gy };
 			cout << pt[0] << " " << pt[1] << " " << pt[2] << " " << pt[3] << endl;
-			Point2f robotpt[4] = { Point2f(148.9029, 327.8299), Point2f(198.4039, 306.0657), Point2f(177.6139, 260.6517), Point2f(129.4032, 281.4682) };
+			Point2f robotpt[4] = { Point2f(148.9029, 327.8299), Point2f(198.4039, 306.0657), Point2f(129.4032, 281.4682), Point2f(177.6139, 260.6517) };
 			vector<Point2d> robotpick(1);
 			robotpick[0] = Point2d(point_arr[index / 12][index % 12].x, point_arr[index / 12][index % 12].y) + coord.pos;
 			Mat ptf = getPerspectiveTransform(pt, robotpt);
@@ -241,6 +241,7 @@ int main() {
 			perspectiveTransform(robotpick, robotpick, ptf);
 			cout << robotpick[0] << endl;
 
+			if (DEBUG) {
 			p.robot_x = robotpick[0].x;
 			p.robot_y = robotpick[0].y;
 			p.robot_z = 50;
@@ -383,7 +384,21 @@ int main() {
 				}
 				waitKey(50);
 			}
+			waitKey(300);
+
+			// Move to original Point
+			p.robot_z = 50;
+			p.robot_x = 0;
+			p.robot_y = 300;
+			joint = joint_arc(p);
+			packet = make_paket(joint);
+			for (int j = 0; j < packet.size(); j++) {
+				if (serialPort.WriteByte(char(packet.at(j))))
+					cout << "input : " << char(packet.at(j)) << endl;
+			}
+
 			cout << "send points complete" << endl;
+			}
 
 			//////////@@@@@@@@@@@@@@@@@@@@@Serial End@@@@@@@@@@@@@@@@@@@@@@@////////////////////
 			draw_board(point_arr);
@@ -712,7 +727,8 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 			coordinate coord;
 			coord.px = pt[1] - pt[0]; coord.py = pt[2] - pt[0]; coord.gx = pt[4] - pt[3]; coord.gy = pt[5] - pt[3];
 			coord.px = coord.px / sqrt(coord.px.dot(coord.px)); coord.py = coord.py / sqrt(coord.py.dot(coord.py));
-			coord.pos = pos / SCALAR;
+			coord.pos = pos;
+			//coord.pos = pos / SCALAR;
 			//coord.gx = coord.gx / sqrt(coord.gx.dot(coord.gx)); coord.gy = coord.gy / sqrt(coord.gy.dot(coord.gy));
 			coord.v = pt[0] - pt[3];
 			coord.badukpan = paperFrame.clone();
