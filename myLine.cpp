@@ -26,7 +26,6 @@ void myLine_arr::insert(float rho, float theta) {
 }
 
 
-
 void myLine_arr::contourLines(vector < myLine* >& lines, const double rho_threshold, const double theta_threshold) {
 
 	if (lines.size() == 0) return;
@@ -65,106 +64,52 @@ void myLine_arr::contourLines(vector < myLine* >& lines, const double rho_thresh
 	}
 }
 
-
-
-
-
 void myLine_arr::XYcontour(const double rho_threshold, const double theta_threshold) {
-
 	contourLines(this->y_lines, rho_threshold, theta_threshold);
-
 	contourLines(this->x_lines, rho_threshold, theta_threshold);
-
 }
-
-
 
 int myLine_arr::hough_detection(cv::Mat frame) {
-
 	//Mat c_frame = frame.clone();
-
 	//Mat img_gray, img_dilate, dst;
-
 	//cvtColor(c_frame, img_gray, COLOR_RGB2GRAY);
-
 	//Canny(img_gray, dst, 50, 50, 3);
-
 	Mat img_dilate, dst;
-
 	Canny(frame, dst, 40, 150, 3);
-
 	//....
-
 	imshow("canny", dst);
-
 	//....
-
 	Mat mask = cv::getStructuringElement(cv::MORPH_RECT, Size(3, 3), Point(1, 1));
-
 	dilate(dst, img_dilate, mask, Point(-1, -1), 2);
-
 	erode(img_dilate, dst, mask, Point(-1, -1), 2);
 
-
-
 	// Standard Hough Line Transform
-
 	vector<Vec2f> lines; // will hold the results of the detection
-
 	HoughLines(dst, lines, 1, CV_PI / 180, 200); // runs the actual detection
-
-
-
 	while (lines.size() != 0) {
-
 		this->insert(lines.back()[0], lines.back()[1]);
-
 		lines.pop_back();
-
 	}
-
 	//this->drawLines(frame);
 	//imshow("gridsample", frame);
-
 	double rho_threshold = 5;
-
 	double theta_threshold = 20 * CV_PI / 180;
-
 	this->XYcontour(rho_threshold, theta_threshold);
-
-
 	if (this->x_lines.size() == 12 && this->y_lines.size() == 12) return 1;
-
 	return 0;
-
 }
 
-
-
-
-
 void myLine_arr::drawLines(Mat& frame) {
-
 	double a, b, _x, _y;
-
 	Point pt1, pt2;
-
 	for (int i = 0; i < this->x_lines.size(); i++)
-
 	{
-
 		a = cos((double)this->x_lines.at(i)->theta), b = sin((double)this->x_lines.at(i)->theta);
-
 		_x = a * this->x_lines.at(i)->rho, _y = b * this->x_lines.at(i)->rho;
-
 		pt1.x = cvRound(_x + 1000 * (-b));
-
 		pt1.y = cvRound(_y + 1000 * (a));
-
 		pt2.x = cvRound(_x - 1000 * (-b));
-
 		pt2.y = cvRound(_y - 1000 * (a));
-
 		line(frame, pt1, pt2, Scalar(255, 0, 0), 1, LINE_AA);
 	}
 	for (int i = 0; i < this->y_lines.size(); i++)
