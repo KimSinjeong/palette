@@ -1,4 +1,3 @@
-//#include "SerialComm.h"
 #include "SerialPort.h"
 #include "myLine.h"
 #include "myPoint.h"
@@ -15,17 +14,19 @@
 #include <opencv2/imgproc.hpp>
 
 #define SCALAR 2
+#define DEBUG 1
 
 using namespace cv;
 using namespace std;
 
-int screen_width;
-int screen_hieght;
+int cam_num = 0;
 
+// 나중에 QR코드 인식에 쓸 dictionary
 Mat dictionary = Mat(250, (6 * 6 + 7) / 8, CV_8UC4, (uchar*)DICT_6X6_1000_BYTES);
 
+// TODO: 무엇에 대한 coordinate struct인가??
 typedef struct coordinate {
-	Point2d px, py, gx, gy, v;
+	Point2d px, py, gx, gy, v, pos;
 	Mat badukpan;
 };
 
@@ -57,6 +58,7 @@ Mat getByteListFromBits(const Mat& bits) {
 	return candidateByteList;
 }
 
+// Hamming distance를 이용해 어떤 QR코드인지 알아내는 함수인듯
 bool identify(const Mat& onlyBits, int& idx, int& rotation) {
 	int markerSize = 6;
 
@@ -73,7 +75,7 @@ bool identify(const Mat& onlyBits, int& idx, int& rotation) {
 		//각 마커 ID
 		for (unsigned int r = 0; r < 4; r++) {
 			int currentHamming = hal::normHamming(
-				dictionary.ptr(m) + r*candidateBytes.cols,
+				dictionary.ptr(m) + r * candidateBytes.cols,
 				candidateBytes.ptr(),
 				candidateBytes.cols);
 
@@ -91,20 +93,30 @@ bool identify(const Mat& onlyBits, int& idx, int& rotation) {
 	return idx != -1;
 }
 
-coordinate is_marker(Mat frame, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p);
+// 좌표 변환 (참조하는 곳이 없는 것으로 보임)
+Point2d coordtf(coordinate coord, Point2d x) {
+	Mat P = (Mat_<double>(2, 2) << coord.gx.x, coord.gx.y, coord.gy.x, coord.gy.y);
+	Point2d pt = x + coord.v;
+	P = P * (Mat_<double>(2, 1) << pt.x, pt.y);
+	return Point2d(P.at<double>(0, 0), P.at<double>(1, 0));
+}
 
-Mat find_global_real_coor(Mat input_point, Point2f pap_pix2pap_real, Point2f p_origin_pixel, Point2f g_origin_pixel, Point2f p_x_pixel, Point2f p_y_pixel, Point2f g_x_pixel, Point2f g_y_pixel, Mat t_g_p);
+//void is_marker(Mat frame, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p);
+coordinate is_marker(Mat frame, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel,
+	Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p);
+
+Mat find_global_real_coor(Mat input_point, Mat pap_pix2pap_real, Point2f p_origin_pixel, Point2f g_origin_pixel,
+	Point2f p_x_pixel, Point2f p_y_pixel, Point2f g_x_pixel, Point2f g_y_pixel, Mat t_g_p);
 //find_global_real_coor 을 이용해서 아웃풋 좌표를 내보내주면 됨. + 로봇 좌표 추가해야됨 +시리얼로 내보내기+ 종이 잘 만들기, 고정시키기 +
 
 int main() {
-
 	char buffer = 0;
 	CSerialPort serialPort;
-	char port[6] = "COM7";
-	char* port_p = port;
+	char port[6];
+	cout << "Enter Port" << endl;
+	cin >> port;
 
-	/*
-	if (!serialPort.OpenPort(port_p)) //COM25번의 포트를 오픈한다. 실패할 경우 -1을 반환한다.
+	if (!serialPort.OpenPort(port))
 	{
 		cout << "connect faliled" << endl;
 		return -1;
@@ -113,18 +125,16 @@ int main() {
 		serialPort.ConfigurePort(9600, 8, 0, 0, 0);
 		cout << "connect successed" << endl;
 	}
-	*/
 
-	VideoCapture cap1(0);
-	Size size(640, 360);
+	VideoCapture cap1(2);
+	//Size size(640, 360);
 	if (!cap1.isOpened())
 		cout << "카메라를 열 수 없습니다." << endl;
 
 	Mat frame;
-	cap1 >> frame;
-	screen_hieght = frame.size().height;
-	screen_width = frame.size().width;
+
 	myPoint point_arr[12][12];
+	myLine_arr line_arr = myLine_arr();
 	int dot_num = 0;
 	draw_board(point_arr);
 
@@ -136,18 +146,30 @@ int main() {
 
 	while (1)
 	{
-		cap1 >> frame;
 		//2개의 아루코 마커와 3개의 점이 인식될때까지
-		coordinate coord = is_marker(frame, pap_pix2pap_real, p_origin_pixel, g_origin_pixel, p_x_pixel, p_y_pixel, g_x_pixel, g_y_pixel, t_g_p);
-		cout << "detected 2 aruco markers and 3 points" << endl;
+		coordinate coord;
+		do {
+			cap1 >> frame;
+			line_arr.drawLines(coord.badukpan);
+			line_arr.removeLines();
+			coord = is_marker(frame, pap_pix2pap_real, p_origin_pixel, g_origin_pixel, p_x_pixel, p_y_pixel, g_x_pixel, g_y_pixel, t_g_p);
+			//cout << coord.px << " " << coord.py << endl;
+			waitKey(10);
+		} while (coord.badukpan.size().height == 1 || !line_arr.hough_detection(coord.badukpan));
+		cout << "hough success" << endl;
+		Mat image = coord.badukpan.clone();
 
-		// TODO
-		// 1. Go board grid detection
-		// 2. Go stone detection
-		// 3. Derive global location of a go stone.
-		
+		arr_of_points(line_arr, point_arr);
+		line_arr.drawLines(image);
+		for (int i = 0; i < 12; i++)
+			for (int j = 0; j < 12; j++)
+				circle(image, Point(point_arr[i][j].x, point_arr[i][j].y), 5, Scalar(0, 0, 255));
+
+		imshow("grid", image);
+
 		//원점: paper marker, real 12*12 배열 생성(mm 단위)
-		int dis_between_lines = 90 / 11;//mm단위
+
+		/*int dis_between_lines = 90 / 11;//mm단위
 		for (int i = 0; i < 12; i++) {
 			for (int j = 0; j < 12; j++) {
 				point_arr[i][j].paper_x = Point2f(18, 23).x + Point2f(dis_between_lines * j, dis_between_lines * i).x;
@@ -173,31 +195,20 @@ int main() {
 				point_arr[i][j].robot_z = 7;
 			}
 		}
-
-		cout << "finish setting arr_points_pap_real" << endl;
+		*/
+		//cout << "finish setting arr_points_pap_real" << endl;
 		//cout << p_origin_pixel << endl;
 		//circle(frame, p_origin_pixel, 5, Scalar(0, 255, 255));
-
-		new_arr_of_points(frame, point_arr, pap_pix2pap_real, p_origin_pixel);
+		//cout << "new_arr_of_points" << endl;
 		//drawDots(frame, point_arr);
 		//cout << point_arr[0][0].x <<" "<<point_arr[0][0].y<< endl;
 		//imshow("points", frame);
 		//line_arr.drawLines(frame);
 
-		for (int i = 0; i < 12; i++) {
-			for (int j = 0; j < 12; j++) {
-				circle(frame, Point2f(point_arr[i][j].x, point_arr[i][j].y), 5, Scalar(0, 255, 255));
-				//cout << Point2f(point_arr[i][j].x, point_arr[i][j].y) << endl;
-			}
-		}
-		imshow("points", frame);
-
-		/*
-		cout << "dot detction" << endl;
-
-		cap1 >> frame;
+		cout << "start dot detection" << endl;
 		int index;
-		if (dotDetection(frame, point_arr)) {
+		if (dotDetection(coord.badukpan, point_arr)) {
+			cout << "dotDetection" << endl;
 			cout << ++dot_num << endl;
 			draw_board(point_arr);
 			waitKey(1000);
@@ -220,165 +231,181 @@ int main() {
 			//////////@@@@@@@@@@@@@@@@@@@@@Serial@@@@@@@@@@@@@@@@@@@@@@@////////////////////
 			//myPoint p;
 			//@@@@ index : index of ai stone in points_arr
-			
+			Point2f pt[4] = { -coord.v, -coord.v + coord.gx, -coord.v + coord.gy, -coord.v + coord.gx + coord.gy };
+			cout << pt[0] << " " << pt[1] << " " << pt[2] << " " << pt[3] << endl;
+			Point2f robotpt[4] = { Point2f(148.9029, 327.8299), Point2f(198.4039, 306.0657), Point2f(129.4032, 281.4682), Point2f(177.6139, 260.6517) };
+			vector<Point2d> robotpick(1);
+			robotpick[0] = Point2d(point_arr[index / 12][index % 12].x, point_arr[index / 12][index % 12].y) + coord.pos;
+			Mat ptf = getPerspectiveTransform(pt, robotpt);
+			cout << ptf << endl;
+			perspectiveTransform(robotpick, robotpick, ptf);
+			cout << robotpick[0] << endl;
+
+			if (DEBUG) {
+			p.robot_x = robotpick[0].x;
+			p.robot_y = robotpick[0].y;
+			p.robot_z = 50;
+
 			cout << "send the point start" << endl;
-			for (int i = 0; i < 4; i++) {
-				p.robot_x = point_arr[index / 12][index % 12].robot_x;
-				p.robot_y = point_arr[index / 12][index % 12].robot_y;
-				p.robot_z = point_arr[index / 12][index % 12].robot_z - 5 * i;
-
-				vector<int> joint;
-				joint = joint_arc(p);
-
-				vector <char> packet;
-				packet = make_paket(joint);
-				for (int i = 0; i < packet.size(); i++) {
-					if (serialPort.WriteByte(char(packet.at(i))))
-					{
-						cout << i << " : " << +char(packet.at(i)) << " ";
-						//cout << "input : " << char(packet.at(i)) << endl;
-						BYTE byte1;
-						serialPort.ReadByte(byte1);
-						//cout << "output : " << byte1 << endl;
-					}
-					//cout << "send Command success" << endl;
-
-				}
-				cout << endl;
-			}
-			//1
-			p.robot_x = point_arr[index / 12][index % 12].robot_x + 0.3;
-			p.robot_y = point_arr[index / 12][index % 12].robot_y + 0.3;
-			p.robot_z = point_arr[index / 12][index % 12].robot_z;
-
+			p.robot_x += 3;
+			//go to first point
 			vector<int> joint;
 			joint = joint_arc(p);
+
 			vector <char> packet;
 			packet = make_paket(joint);
-			for (int i = 0; i < packet.size(); i++) {
-				if (serialPort.WriteByte(char(packet.at(i))))
+			for (int j = 0; j < packet.size(); j++) {
+				if (serialPort.WriteByte(char(packet.at(j))))
 				{
-					//cout << "input : " << char(packet.at(i)) << endl;
-					BYTE byte1;
-					serialPort.ReadByte(byte1);
+					//cout << i << " : " << +char(packet.at(i)) << " ";
+					cout << "input : " << char(packet.at(j)) << endl;
+					//BYTE byte1;
+					//serialPort.ReadByte(byte1);
 					//cout << "output : " << byte1 << endl;
 				}
 				//cout << "send Command success" << endl;
 
 			}
-			//2
-			p.robot_x = point_arr[index / 12][index % 12].robot_x - 0.3;
-			p.robot_y = point_arr[index / 12][index % 12].robot_y + 0.3;
-			p.robot_z = point_arr[index / 12][index % 12].robot_z;
+			waitKey(3000);
+			cout << "send the point start" << endl;
+			for (int i = 50; i > 8; i--) {
+				p.robot_z = i;
 
-			//vector<int> joint;
-			joint = joint_arc(p);
-
-			//vector <char> packet;
-			packet = make_paket(joint);
-			for (int i = 0; i < packet.size(); i++) {
-				if (serialPort.WriteByte(char(packet.at(i))))
-				{
-					//cout << "input : " << char(packet.at(i)) << endl;
-					BYTE byte1;
-					serialPort.ReadByte(byte1);
-					//cout << "output : " << byte1 << endl;
-				}
-				//cout << "send Command success" << endl;
-
-			}
-			//3
-			p.robot_x = point_arr[index / 12][index % 12].robot_x - 0.3;
-			p.robot_y = point_arr[index / 12][index % 12].robot_y - 0.3;
-			p.robot_z = point_arr[index / 12][index % 12].robot_z;
-
-			//vector<int> joint;
-			joint = joint_arc(p);
-
-			//vector <char> packet;
-			packet = make_paket(joint);
-			for (int i = 0; i < packet.size(); i++) {
-				if (serialPort.WriteByte(char(packet.at(i))))
-				{
-					//cout << "input : " << char(packet.at(i)) << endl;
-					BYTE byte1;
-					serialPort.ReadByte(byte1);
-					//cout << "output : " << byte1 << endl;
-				}
-				//cout << "send Command success" << endl;
-
-			}
-			//4
-			p.robot_x = point_arr[index / 12][index % 12].robot_x + 0.3;
-			p.robot_y = point_arr[index / 12][index % 12].robot_y - 0.3;
-			p.robot_z = point_arr[index / 12][index % 12].robot_z;
-
-			//vector<int> joint;
-			joint = joint_arc(p);
-
-			//vector <char> packet;
-			packet = make_paket(joint);
-			for (int i = 0; i < packet.size(); i++) {
-				if (serialPort.WriteByte(char(packet.at(i))))
-				{
-					//cout << "input : " << char(packet.at(i)) << endl;
-					BYTE byte1;
-					serialPort.ReadByte(byte1);
-					//cout << "output : " << byte1 << endl;
-				}
-				//cout << "send Command success" << endl;
-
-			}
-			//5
-			p.robot_x = point_arr[index / 12][index % 12].robot_x + 0.3;
-			p.robot_y = point_arr[index / 12][index % 12].robot_y + 0.3;
-			p.robot_z = point_arr[index / 12][index % 12].robot_z;
-
-			//vector<int> joint;
-			joint = joint_arc(p);
-
-			//vector <char> packet;
-			packet = make_paket(joint);
-			for (int i = 0; i < packet.size(); i++) {
-				if (serialPort.WriteByte(char(packet.at(i))))
-				{
-					//cout << "input : " << char(packet.at(i)) << endl;
-					BYTE byte1;
-					serialPort.ReadByte(byte1);
-					//cout << "output : " << byte1 << endl;
-				}
-				//cout << "send Command success" << endl;
-
-			}
-			for (int i = 0; i < 4; i++) {
-				p.robot_x = point_arr[index / 12][index % 12].robot_x;
-				p.robot_y = point_arr[index / 12][index % 12].robot_y;
-				p.robot_z = point_arr[index / 12][index % 12].robot_z + 5 * i;
-
-				vector<int> joint;
 				joint = joint_arc(p);
-
-				vector <char> packet;
 				packet = make_paket(joint);
-				for (int i = 0; i < packet.size(); i++) {
-					if (serialPort.WriteByte(char(packet.at(i))))
+				for (int j = 0; j < packet.size(); j++) {
+					if (serialPort.WriteByte(char(packet.at(j))))
 					{
-						//cout << "input : " << char(packet.at(i)) << endl;
-						BYTE byte1;
-						serialPort.ReadByte(byte1);
+						//cout << i << " : " << +char(packet.at(i)) << " ";
+						cout << "input : " << char(packet.at(j)) << endl;
+						//BYTE byte1;
+						//serialPort.ReadByte(byte1);
 						//cout << "output : " << byte1 << endl;
 					}
 					//cout << "send Command success" << endl;
 
 				}
+				cout << "delay" << endl;
+				waitKey(50);
 			}
-			
+			waitKey(300);
+			//1
+			p.robot_x -= 3;
+			p.robot_y += 3;
+			joint = joint_arc(p);
+			packet = make_paket(joint);
+			for (int i = 0; i < packet.size(); i++) {
+				if (serialPort.WriteByte(char(packet.at(i))))
+				{
+					cout << "input : " << char(packet.at(i)) << endl;
+					//BYTE byte1;
+					//serialPort.ReadByte(byte1);
+					//cout << "output : " << byte1 << endl;
+				}
+				//cout << "send Command success" << endl;
+
+			}
+			waitKey(300);
+			//2
+			p.robot_x -= 3;
+			p.robot_y -= 3;
+			//vector<int> joint;
+			joint = joint_arc(p);
+
+			//vector <char> packet;
+			packet = make_paket(joint);
+			for (int i = 0; i < packet.size(); i++) {
+				if (serialPort.WriteByte(char(packet.at(i))))
+				{
+					cout << "input : " << char(packet.at(i)) << endl;
+					//BYTE byte1;
+					//serialPort.ReadByte(byte1);
+					//cout << "output : " << byte1 << endl;
+				}
+				//cout << "send Command success" << endl;
+
+			}
+			waitKey(300);
+			//3
+			p.robot_x += 3;
+			p.robot_y -= 3;
+
+			//vector<int> joint;
+			joint = joint_arc(p);
+
+			//vector <char> packet;
+			packet = make_paket(joint);
+			for (int i = 0; i < packet.size(); i++) {
+				if (serialPort.WriteByte(char(packet.at(i))))
+				{
+					cout << "input : " << char(packet.at(i)) << endl;
+					//BYTE byte1;
+					//serialPort.ReadByte(byte1);
+					//cout << "output : " << byte1 << endl;
+				}
+				//cout << "send Command success" << endl;
+
+			}
+			waitKey(300);
+			//4
+			p.robot_x += 3;
+			p.robot_y += 3;
+			//vector<int> joint;
+			joint = joint_arc(p);
+			packet = make_paket(joint);
+			for (int i = 0; i < packet.size(); i++) {
+				if (serialPort.WriteByte(char(packet.at(i))))
+				{
+					cout << "input : " << char(packet.at(i)) << endl;
+					//BYTE byte1;
+					//serialPort.ReadByte(byte1);
+					//cout << "output : " << byte1 << endl;
+				}
+				//cout << "send Command success" << endl;
+
+			}
+			waitKey(300);
+
+			// z up
+			for (int i = 9; i < 51; i++) {
+				p.robot_z = i;
+
+				joint = joint_arc(p);
+				packet = make_paket(joint);
+				for (int j = 0; j < packet.size(); j++) {
+					if (serialPort.WriteByte(char(packet.at(j))))
+					{
+						cout << "input : " << char(packet.at(j)) << endl;
+						//BYTE byte1;
+						//serialPort.ReadByte(byte1);
+						//cout << "output : " << byte1 << endl;
+					}
+					//cout << "send Command success" << endl;
+				}
+				waitKey(50);
+			}
+			waitKey(300);
+
+			// Move to original Point
+			p.robot_z = 50;
+			p.robot_x = 0;
+			p.robot_y = 300;
+			joint = joint_arc(p);
+			packet = make_paket(joint);
+			for (int j = 0; j < packet.size(); j++) {
+				if (serialPort.WriteByte(char(packet.at(j))))
+					cout << "input : " << char(packet.at(j)) << endl;
+			}
+
+			cout << "send points complete" << endl;
+			}
+
 			//////////@@@@@@@@@@@@@@@@@@@@@Serial End@@@@@@@@@@@@@@@@@@@@@@@////////////////////
 			draw_board(point_arr);
 			waitKey(1000);
 		}
 		if (waitKey(10) == 27) break;
-		*/
+		cout << "end loop" << endl;
 	}
 	waitKey(0);
 	//serialPort.ClosePort(); //작업이 끝나면 포트를 닫는다
@@ -387,13 +414,10 @@ int main() {
 	return 0;
 }
 
-
-
 //--------------------------------------------------------------------------------------------------------------------------//
 
-
-
 coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p) {
+	//void is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_pixel, Point2f& g_origin_pixel, Point2f& p_x_pixel, Point2f& p_y_pixel, Point2f& g_x_pixel, Point2f& g_y_pixel, Mat& t_g_p) {
 	if (!input_image.empty()) {
 		Mat input_gray_image;
 		Mat binary_image;
@@ -412,7 +436,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 		for (size_t i = 0; i < contours.size(); i++)
 		{
 			approxPolyDP(Mat(contours[i]), approx, arcLength(Mat(contours[i]), true) * 0.05, true);
-
 			if (
 				approx.size() == 4 && //사각형은 4개의 vertex를 가진다. 
 				fabs(contourArea(Mat(approx))) > 1000 && //면적이 일정크기 이상이어야 한다.
@@ -420,9 +443,7 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				isContourConvex(Mat(approx)) //convex인지 검사한다.
 				)
 			{
-
 				//drawContours(input_image, contours, i, Scalar(0, 255, 0), 1, LINE_AA);
-
 				vector<cv::Point2f> points;
 				for (int j = 0; j < 4; j++)
 					points.push_back(cv::Point2f(approx[j].x, approx[j].y));
@@ -434,9 +455,7 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				double o = (v1.x * v2.y) - (v1.y * v2.x); //벡터 외적해서 시계방향인지 판단, 음수면 반시계방향이라는 거라서 1번, 3번 점 을 바꿔준다.
 				if (o < 0.0)
 					swap(points[1], points[3]);
-
 				marker.push_back(points);
-
 			}
 		}
 
@@ -447,14 +466,12 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 		vector<Point2f> square_points;
 
 		int marker_image_side_length = 80; //마커 6x6크기일때 검은색 테두리 영역 포함한 크기는 8x8
-									//이후 단계에서 이미지를 격자로 분할할 시 셀하나의 픽셀너비를 10으로 한다면
-									//마커 이미지의 한변 길이는 80
+		//이후 단계에서 이미지를 격자로 분할할 시 셀하나의 픽셀너비를 10으로 한다면
+		//마커 이미지의 한변 길이는 80
 		square_points.push_back(cv::Point2f(0, 0));
 		square_points.push_back(cv::Point2f(marker_image_side_length - 1, 0));
 		square_points.push_back(cv::Point2f(marker_image_side_length - 1, marker_image_side_length - 1));
 		square_points.push_back(cv::Point2f(0, marker_image_side_length - 1));
-
-
 
 		Mat marker_image;
 		for (int i = 0; i < marker.size(); i++)
@@ -487,14 +504,10 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				{
 					int cellX = x * cellSize;
 					int cellY = y * cellSize;
-
 					cv::Mat cell = marker_image(Rect(cellX, cellY, cellSize, cellSize));
-
 					int total_cell_count = countNonZero(cell);
-
 					if (total_cell_count > (cellSize * cellSize) / 2)
 						white_cell_count++; //태두리에 흰색영역이 있다면, 셀내의 픽셀이 절반이상 흰색이면 흰색영역으로 본다 
-
 				}
 			}
 
@@ -531,7 +544,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 			}
 
 			bitMatrixs.push_back(bitMatrix);
-
 		}
 
 		//final_detectedMarkers :: 시계순서로 점을 저장
@@ -549,7 +561,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				cout << "발견안됨" << endl;
 
 			else {
-
 				if (rotation != 0) {
 					//회전을 고려하여 코너를 정렬합니다. 
 					//마커의 회전과 상관없이 마커 코너는 항상 같은 순서로 저장됩니다.
@@ -568,7 +579,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				markerID.push_back(marker_id);
 				final_detectedMarkers.push_back(m);
 			}
-
 		}
 
 
@@ -623,7 +633,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				g_x_pixel = g_x_pixel / sqrt(g_x_pixel.dot(g_x_pixel)); //크기 1로 만들기
 				g_y_pixel = g_y_pixel / sqrt(g_y_pixel.dot(g_y_pixel)); //크기 1로 만들기
 			}
-
 		}
 
 		Point2f p_x_blob;
@@ -636,10 +645,10 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 			Point2f keyP = keypoints.at(i).pt - p_origin_pixel;
 			//Point2f keyP = keypoints.at(i).pt;
 			//int min_dot;
-			if (abs(keyP.dot(p_x_pixel)) > cos(5 * CV_PI / 180)* sqrt(keyP.dot(keyP))) {
+			if (abs(keyP.dot(p_x_pixel)) > cos(5 * CV_PI / 180) * sqrt(keyP.dot(keyP))) {
 				p_x_blob = keyP + p_origin_pixel;
 			}
-			else if (abs(keyP.dot(p_y_pixel)) > cos(5 * CV_PI / 180)* sqrt(keyP.dot(keyP))) {
+			else if (abs(keyP.dot(p_y_pixel)) > cos(5 * CV_PI / 180) * sqrt(keyP.dot(keyP))) {
 				p_y_blob = keyP + p_origin_pixel;
 				//cout << "p_y_blob" <<p_y_blob << endl;
 			}
@@ -647,10 +656,6 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 				p_xy_blob = keyP + p_origin_pixel;
 			}
 		}
-
-		imshow("keypoints", input_image);
-
-		cout << "점 갯수" << keypoints.size() << endl;
 
 		// 문제!! paper origin 기준 projection 을 했을 때 global marker 가  
 
@@ -662,14 +667,14 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 		// 로봇이 둘 실제 좌표는 globla origin 을 기준으로 projection matrix 계산 한 걸로 추적
 
 		// 세번째 방법 (paper origin을 기준으로 projection matrix 구한 image 에서 다시 global 원점을 기준으로 한 transform을 구한다.)
-		
-		// transMat_paper 행렬 구하기		
-		Point TopLeft = Point(p_origin_pixel.x, p_origin_pixel.y);
-		Point TopRight = p_x_blob;
-		Point BottomRight = p_xy_blob;
-		Point BottomLeft = p_y_blob;
 
-		vector<Point>rect;
+		// transMat_paper 행렬 구하기		
+		Point2f TopLeft = p_origin_pixel;
+		Point2f TopRight = p_x_blob;
+		Point2f BottomRight = p_xy_blob;
+		Point2f BottomLeft = p_y_blob;
+
+		vector<Point2f>rect;
 		rect.push_back(TopLeft);
 		rect.push_back(TopRight);
 		rect.push_back(BottomRight);
@@ -678,60 +683,78 @@ coordinate is_marker(Mat input_image, Mat& pap_pix2pap_real, Point2f& p_origin_p
 		Point2f src[4], dst[4];
 		src[0] = Point2f(TopLeft.x, TopLeft.y);
 		src[1] = Point2f(TopRight.x, TopRight.y);
-		src[2] = Point2f(BottomRight.x, BottomRight.y);
-		src[3] = Point2f(BottomLeft.x, BottomLeft.y);
+		src[3] = Point2f(BottomRight.x, BottomRight.y);
+		src[2] = Point2f(BottomLeft.x, BottomLeft.y);
 
 		dst[0] = SCALAR * Point2f(0, 0);
-		dst[1] = SCALAR * Point2f(122.0, 0);
-		dst[2] = SCALAR * Point2f(122.0, 122.0);
-		dst[3] = SCALAR * Point2f(0, 122.0);
-		
+		dst[1] = SCALAR * Point2f(150.0, 0);
+		dst[3] = SCALAR * Point2f(150.0, 150.0);
+		dst[2] = SCALAR * Point2f(0, 150.0);
+
 		Mat transMat_paper = getPerspectiveTransform(src, dst);
 		Mat paperFrame;
 
-		warpPerspective(input_image, paperFrame, transMat_paper, Size(SCALAR * 122, SCALAR * 122));
+		imshow("keypoints", input_image);
 
-		Mat res;
+		warpPerspective(input_gray_image, paperFrame, transMat_paper, Size(SCALAR * 150, SCALAR * 150));
+
+		vector<Point2d> pt(6);
 		if (detectedMarkers.size() == 2) {
 			// Homography matrix transMat_paper, transform origin points
-			Mat pt = (Mat_<double>(6, 3) << p_origin_pixel.x, p_origin_pixel.y, 1, p_x_pixel.x, p_x_pixel.y, 1,
-				p_y_pixel.x, p_y_pixel.y, 1, g_origin_pixel.x, g_origin_pixel.y, 1, g_x_pixel.x, g_x_pixel.y, 1,
-				g_y_pixel.x, g_y_pixel.y, 1);
-			pt = pt.t();
-			res = (transMat_paper * pt).t();
-			// Change to homogeneous
-			for (int i = 0; i < res.size().height; i++) {
-				res.at<double>(i, 0) /= res.at<double>(i, 2);
-				res.at<double>(i, 1) /= res.at<double>(i, 2);
+			vector<Point2d> ptm(6);
+			for (int i = 0; i < detectedMarkers.size(); i++)
+			{
+				if (markerID.at(i) == 0) {
+					ptm[0] = final_detectedMarkers.at(i).at(0);
+					ptm[1] = final_detectedMarkers.at(i).at(1);
+					ptm[2] = final_detectedMarkers.at(i).at(3);
+				}
+				else {
+					ptm[3] = final_detectedMarkers.at(i).at(0);
+					ptm[4] = final_detectedMarkers.at(i).at(1);
+					ptm[5] = final_detectedMarkers.at(i).at(3);
+				}
+				perspectiveTransform(ptm, pt, transMat_paper);
 			}
 		}
+
 		imshow("perspective", paperFrame);
 
+		Point2d pos = Point2d(20, 40);
+		paperFrame = paperFrame(Rect((int)pos.x, (int)pos.y, 260, 260));
 		// Coordinate transformation between global and local coordinates.
 		if (detectedMarkers.size() == 2 && keypoints.size() == 3) {
 			coordinate coord;
-			coord.px = Point2d(res.at<double>(1, 0), res.at<double>(1, 1));
-			coord.py = Point2d(res.at<double>(2, 0), res.at<double>(2, 1));
-			coord.gx = Point2d(res.at<double>(4, 0), res.at<double>(4, 1));
-			coord.gy = Point2d(res.at<double>(5, 0), res.at<double>(5, 1));
-			coord.v = Point2d(res.at<double>(0, 0), res.at<double>(0, 1)) - Point2d(res.at<double>(2, 0), res.at<double>(2, 1));
-			coord.badukpan = paperFrame;
+			coord.px = pt[1] - pt[0]; coord.py = pt[2] - pt[0]; coord.gx = pt[4] - pt[3]; coord.gy = pt[5] - pt[3];
+			coord.px = coord.px / sqrt(coord.px.dot(coord.px)); coord.py = coord.py / sqrt(coord.py.dot(coord.py));
+			coord.pos = pos;
+			//coord.pos = pos / SCALAR;
+			//coord.gx = coord.gx / sqrt(coord.gx.dot(coord.gx)); coord.gy = coord.gy / sqrt(coord.gy.dot(coord.gy));
+			coord.v = pt[0] - pt[3];
+			coord.badukpan = paperFrame.clone();
+			cout << "Proper return" << endl;
 			return coord;
 		}
-
-		else {
+		else if (detectedMarkers.size() != 2) {
 			cout << "no enogh markers ^^" << endl;
-			//return 0;
+			cout << detectedMarkers.size() << endl;
+			return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
+		}
+		else if (keypoints.size() != 3) {
+			cout << "no enogh points ^^" << endl;
+			cout << detectedMarkers.size() << endl;
+			return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
 		}
 	}
 
 	else {
 		cout << "no input" << endl;
-		//return 0;
+		return coordinate{ Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), Point2d(-1.0, -1.0), (Mat_<double>(1, 1) << -1) };
 	}
-};
+}
 
-Mat find_global_real_coor(Mat input_point, Mat pap_pix2pap_real, Point2f p_origin_pixel, Point2f g_origin_pixel, Point2f p_x_pixel, Point2f p_y_pixel, Point2f g_x_pixel, Point2f g_y_pixel, Mat t_g_p) {
+Mat find_global_real_coor(Mat input_point, Mat pap_pix2pap_real, Point2f p_origin_pixel, Point2f g_origin_pixel,
+	Point2f p_x_pixel, Point2f p_y_pixel, Point2f g_x_pixel, Point2f g_y_pixel, Mat t_g_p) {
 	Mat pixel = (Mat_<double>(2, 1) << 200, 200);
 	//circle(input_image, Point2f(pixel), 5, Scalar(255, 0, 0), 1);
 	Mat test_paper_pap_pixel = pixel - (Mat_<double>(2, 1) << p_origin_pixel.x, p_origin_pixel.y);
@@ -743,4 +766,4 @@ Mat find_global_real_coor(Mat input_point, Mat pap_pix2pap_real, Point2f p_origi
 	Mat test_global_real = (Mat_<double>(2, 1) << Point2f(test_global_screen).dot(g_x_pixel), Point2f(test_global_screen).dot(g_y_pixel));
 	//cout << Point2f(test_global_real) << endl;
 	return test_global_real;
-};
+}

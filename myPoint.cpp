@@ -4,7 +4,7 @@
 using namespace std;
 using namespace cv;
 
-void arr_of_points(Mat frame, myLine_arr& lines_comb, myPoint points[][12]) {
+void arr_of_points(myLine_arr& lines_comb, myPoint points[][12]) {
 	float a1, a2, b1, b2;
 	//solve the point of intersection of two lines
 	for (size_t i = 0; i < lines_comb.x_lines.size(); i++)
@@ -58,11 +58,11 @@ void drawDots(Mat frame, myPoint points[][12]) {
 
 void blobDetection(Mat frame, vector<KeyPoint>& blobPoints) {
 	SimpleBlobDetector::Params params;
-	params.minThreshold = 100;
+	params.minThreshold = 130;
 	//params.maxThreshold = 220;
 	params.filterByArea = true;
 	params.minArea = 40;
-	params.maxArea = 300;
+	params.maxArea = 80;
 	params.filterByColor = true;
 	params.blobColor = 0; // ¾îµÎ¿î ¾ó·è ÃßÃâ : 0, ¹àÀº ¾ó·è ÃßÃâ : 255
 	params.filterByCircularity = false;
@@ -74,8 +74,6 @@ void blobDetection(Mat frame, vector<KeyPoint>& blobPoints) {
 }
 
 int find_dot_index(myPoint points[][12], KeyPoint blob) {
-	int min_distance = 0;
-	int index = 0;
 	float dx, dy, distance;
 	for (int i = 0; i < 12; i++) {
 		for (int j = 0; j < 12; j++) {
@@ -109,7 +107,7 @@ int dotDetection(Mat frame, myPoint points[][12]) {
 
 	blobDetection(img_higher_contrast, blobPoints);
 	drawKeypoints(img_higher_contrast, blobPoints, frame, Scalar(255, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-	imshow("keypoints", frame);
+	imshow("dot detection", img_higher_contrast);
 	int index = OUTOFDOTS;
 	int x, y;
 	for (int i = 0; i < blobPoints.size(); i++) {
